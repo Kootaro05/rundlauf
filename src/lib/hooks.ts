@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Data } from '../domain/types';
 import type { Backend, Session } from './backend';
 import { createDemoBackend } from './demoBackend';
+import { loadCache, saveCache } from './outbox';
 import { createSupabaseBackend } from './supabaseBackend';
 
 export function createBackend(): Backend {
@@ -10,15 +11,23 @@ export function createBackend(): Backend {
   return url && key ? createSupabaseBackend(url, key) : createDemoBackend();
 }
 
-/** Lädt alle Daten und lädt neu, sobald sich irgendwo etwas ändert. */
+/**
+ * Lädt alle Daten und lädt neu, sobald sich irgendwo etwas ändert.
+ * Der letzte Stand wird auf dem Gerät gespeichert; ohne Netz startet die App damit.
+ */
 export function useData(backend: Backend) {
-  const [data, setData] = useState<Data | null>(null);
+  const cached = backend.kind === 'supabase' ? loadCache() : null;
+  const [data, setData] = useState<Data | null>(cached?.data ?? null);
+  const [loadedAt, setLoadedAt] = useState<number | null>(cached?.at ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      setData(await backend.load());
+      const d = await backend.load();
+      setData(d);
+      setLoadedAt(Date.now());
       setError(null);
+      if (backend.kind === 'supabase') saveCache(d);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -37,7 +46,14 @@ export function useData(backend: Backend) {
     };
   }, [backend, reload]);
 
-  return { data, error, reload };
+  // Nach Funkloch sofort neu laden statt auf die nächste Änderung zu warten
+  useEffect(() => {
+    const onOnline = () => void reload();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [reload]);
+
+  return { data, error, reload, loadedAt };
 }
 
 export function useSession(backend: Backend) {

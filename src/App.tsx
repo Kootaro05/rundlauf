@@ -7,7 +7,10 @@ import { Players } from './components/Players';
 import { CrownIcon, Ctx, type AppCtx } from './components/ui';
 import { currentRound, openPause, roundInfo } from './domain/game';
 import { fmtTime } from './domain/periods';
+import type { NewEvent, Pause } from './domain/types';
+import { isNetworkError } from './lib/backend';
 import { createBackend, useData, useSession } from './lib/hooks';
+import { applyOutbox, loadOutbox, saveOutbox, type PendingEvent } from './lib/outbox';
 
 const TABS = [
   { id: 'live', label: 'Live' },
@@ -50,7 +53,17 @@ function initialTab(): Tab {
 
 export default function App() {
   const backend = useMemo(createBackend, []);
-  const { data, error, reload } = useData(backend);
+  const { data: serverData, error, reload, loadedAt } = useData(backend);
+  const [outbox, setOutboxState] = useState<PendingEvent[]>(loadOutbox);
+  const setOutbox = useCallback((f: (o: PendingEvent[]) => PendingEvent[]) => {
+    setOutboxState((prev) => {
+      const next = f(prev);
+      saveOutbox(next);
+      return next;
+    });
+  }, []);
+  // Was die App zeigt: Serverstand plus Einträge, die noch auf Netz warten
+  const data = useMemo(() => serverData && applyOutbox(serverData, outbox), [serverData, outbox]);
   const { session, ready } = useSession(backend);
   const [tab, setTabState] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState(false);
@@ -89,17 +102,92 @@ export default function App() {
     [reload, toast],
   );
 
+  // Wartende Offline-Einträge der Reihe nach senden. Lehnt der Server einen ab (Regeln), wird er verworfen.
+  const flushing = useRef(false);
+  const flush = useCallback(async () => {
+    if (flushing.current || !navigator.onLine) return;
+    flushing.current = true;
+    try {
+      for (const p of loadOutbox()) {
+        try {
+          await backend.addEvent(p.roundId, p.seq, p.ev);
+        } catch (e) {
+          if (isNetworkError(e)) break;
+          toast(`Offline-Eintrag verworfen: ${e instanceof Error ? e.message : String(e)}`);
+        }
+        setOutbox((o) => o.filter((x) => x.key !== p.key));
+      }
+      await reload();
+    } finally {
+      flushing.current = false;
+    }
+  }, [backend, reload, setOutbox, toast]);
+
+  useEffect(() => {
+    if (!outbox.length) return;
+    void flush();
+    const onOnline = () => void flush();
+    window.addEventListener('online', onOnline);
+    const timer = window.setInterval(() => void flush(), 15000);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.clearInterval(timer);
+    };
+  }, [outbox.length, flush]);
+
+  const addEvent = useCallback(
+    async (roundId: string, seq: number, ev: NewEvent, ok?: string) => {
+      const queue = () => {
+        setOutbox((o) => [...o, { key: crypto.randomUUID(), roundId, seq, ev, t: Date.now() }]);
+        toast(`${ok ?? 'Eingetragen'}. Kein Netz, wird nachgereicht.`);
+        return true;
+      };
+      // Warten schon Einträge, muss der neue hinten anstehen, damit die Reihenfolge stimmt
+      if (!navigator.onLine || loadOutbox().length) return queue();
+      setBusy(true);
+      try {
+        await backend.addEvent(roundId, seq, ev);
+        await reload();
+        if (ok) toast(ok);
+        return true;
+      } catch (e) {
+        if (isNetworkError(e)) return queue();
+        toast(e instanceof Error ? e.message : String(e));
+        await reload();
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [backend, reload, setOutbox, toast],
+  );
+
+  const undo = useCallback(
+    (pa: Pause) => {
+      const roundIds = new Set(pa.rounds.map((r) => r.id));
+      const pending = outbox.filter((p) => roundIds.has(p.roundId));
+      if (pending.length) {
+        const last = pending.at(-1)!;
+        setOutbox((o) => o.filter((x) => x.key !== last.key));
+        toast('Zurückgenommen');
+        return;
+      }
+      void run(() => backend.undo(pa), 'Zurückgenommen');
+    },
+    [outbox, setOutbox, toast, run, backend],
+  );
+
   const ctx = useMemo<AppCtx | null>(() => {
     if (!data) return null;
     const byId = new Map(data.players.map((p) => [p.id, p]));
     const order = [...data.players].sort((a, b) => a.createdAt - b.createdAt).map((p) => p.id);
     return {
-      data, backend, session, busy, run, toast,
+      data, backend, session, busy, run, toast, addEvent, undo,
       canWrite: !!session?.playerId,
       name: (id) => byId.get(id)?.name ?? 'Unbekannt',
       color: (id) => `var(--c${Math.max(0, order.indexOf(id)) % 8})`,
     };
-  }, [data, backend, session, busy, run, toast]);
+  }, [data, backend, session, busy, run, toast, addEvent, undo]);
 
   const pa = data ? openPause(data.pauses) : null;
   const r = currentRound(pa);
@@ -154,7 +242,19 @@ export default function App() {
             <span>Angemeldet als <b>{session.email}</b>, aber diese E-Mail ist keinem Spieler zugeordnet. Bitte jemanden aus der Runde, sie im Tab „Spieler“ einzutragen.</span>
           </div>
         )}
-        {error && <div className="banner err"><span>Daten konnten nicht geladen werden: {error}</span><button className="btn small" onClick={() => void reload()}>Nochmal</button></div>}
+        {outbox.length > 0 && (
+          <div className="banner">
+            <span><b>{outbox.length === 1 ? '1 Eintrag wartet' : `${outbox.length} Einträge warten`} auf Netz.</b> Wird automatisch nachgereicht. Runden und Pausen starten geht erst wieder online.</span>
+          </div>
+        )}
+        {error && (data ? (
+          <div className="banner">
+            <span>Keine Verbindung. Du siehst den Stand von {loadedAt ? fmtTime(loadedAt) : 'vorhin'} Uhr.</span>
+            <button className="btn small" onClick={() => void reload()}>Neu laden</button>
+          </div>
+        ) : (
+          <div className="banner err"><span>Daten konnten nicht geladen werden: {error}</span><button className="btn small" onClick={() => void reload()}>Nochmal</button></div>
+        ))}
         {!ctx ? (
           !error && <div className="card empty"><b>Lade Daten …</b></div>
         ) : (

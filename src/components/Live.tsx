@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { balances, crownCheck, currentRound, kingOf, nextSeq, openPause, roundInfo, serveRule } from '../domain/game';
 import { fmtTime } from '../domain/periods';
-import type { Pause, Round } from '../domain/types';
+import type { NewEvent, Pause, Round } from '../domain/types';
 import { CrownIcon, Dot, WaveIcon, plural, useApp } from './ui';
 
 export function Live() {
@@ -106,7 +106,7 @@ function StartPause() {
 }
 
 function Standings({ pa }: { pa: Pause }) {
-  const { name, canWrite, backend, run, busy } = useApp();
+  const { name, canWrite, undo, busy } = useApp();
   const b = balances(pa);
   const king = kingOf(b);
   const order = Object.keys(b).sort((x, y) => b[y] - b[x] || name(x).localeCompare(name(y), 'de'));
@@ -119,7 +119,7 @@ function Standings({ pa }: { pa: Pause }) {
       <div className="row between">
         <h3>Kronenstand · Pause seit {fmtTime(pa.startedAt)}</h3>
         {canWrite && undoLabel && (
-          <button className="btn small ghost" disabled={busy} title="Letzten Eintrag zurücknehmen" onClick={() => void run(() => backend.undo(pa), 'Zurückgenommen')}>
+          <button className="btn small ghost" disabled={busy} title="Letzten Eintrag zurücknehmen" onClick={() => undo(pa)}>
             ↶ {undoLabel}
           </button>
         )}
@@ -187,13 +187,12 @@ function RoundSetup({ pa }: { pa: Pause }) {
 }
 
 function RunningRound({ pa, r }: { pa: Pause; r: Round }) {
-  const { backend, run, busy, canWrite, name } = useApp();
+  const { addEvent, busy, canWrite, name } = useApp();
   const [sheet, setSheet] = useState<string | null>(null);
   const i = roundInfo(r);
   const b = balances(pa);
   const king = kingOf(b);
-  const add = (ev: Parameters<typeof backend.addEvent>[2], ok?: string) =>
-    run(() => backend.addEvent(r.id, nextSeq(r), ev), ok).then(() => setSheet(null));
+  const add = (ev: NewEvent, ok?: string) => addEvent(r.id, nextSeq(r), ev, ok).then(() => setSheet(null));
 
   const head = (
     <div className="roundhead">
@@ -270,7 +269,7 @@ function RunningRound({ pa, r }: { pa: Pause; r: Round }) {
 }
 
 function Final({ pa, r }: { pa: Pause; r: Round }) {
-  const { backend, run, busy, canWrite, name } = useApp();
+  const { addEvent, busy, canWrite, name } = useApp();
   const [picked, setPicked] = useState<string | null>(null);
   const rule = serveRule(pa, r);
   const i = roundInfo(r);
@@ -286,8 +285,9 @@ function Final({ pa, r }: { pa: Pause; r: Round }) {
     : `Gleich viele Kronen (${rule.crownsA}:${rule.crownsB}). Erst die Angabe ausspielen (einwerfen), der Gewinner schlägt auf.`;
 
   const win = (p: string) =>
-    run(
-      () => backend.addEvent(r.id, nextSeq(r), { type: 'final', p, loser: p === rule.a ? rule.b : rule.a, server, pot: i.pot }),
+    addEvent(
+      r.id, nextSeq(r),
+      { type: 'final', p, loser: p === rule.a ? rule.b : rule.a, server, pot: i.pot },
       `${name(p)} gewinnt ${plural(i.pot, 'Krone', 'Kronen')}`,
     );
 

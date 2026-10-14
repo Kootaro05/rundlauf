@@ -47,8 +47,15 @@ function friendly(e: PostgrestError | { code?: string; message: string }): strin
   return `Speichern fehlgeschlagen: ${e.message}`;
 }
 
+// supabase-js meldet einen fehlgeschlagenen Request ohne Code und mit der Meldung des Browsers
+const isFetchFailure = (e: { code?: string; message: string }) =>
+  !e.code && /failed to fetch|networkerror|load failed|network request failed/i.test(e.message);
+
 function check<T extends { error: PostgrestError | null }>(res: T): T {
-  if (res.error) throw new AppError(friendly(res.error));
+  if (res.error) {
+    if (isFetchFailure(res.error)) throw new AppError('Keine Verbindung. Das geht erst wieder mit Netz.', true);
+    throw new AppError(friendly(res.error));
+  }
   return res;
 }
 
@@ -62,8 +69,16 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       async current() {
         const { data } = await sb.auth.getSession();
         if (!data.session) return null;
-        const { data: pid } = await sb.rpc('link_me');
-        return { email: data.session.user.email ?? null, playerId: (pid as string | null) ?? null };
+        // Die Zuordnung Login → Spieler wird gemerkt, damit man auch nach einem Neustart ohne Netz eintragen kann
+        const memo = `rk.player.${data.session.user.id}`;
+        const { data: pid, error } = await sb.rpc('link_me');
+        let playerId = (pid as string | null) ?? null;
+        try {
+          if (error) playerId = localStorage.getItem(memo);
+          else if (playerId) localStorage.setItem(memo, playerId);
+          else localStorage.removeItem(memo);
+        } catch { /* Speicher gesperrt */ }
+        return { email: data.session.user.email ?? null, playerId };
       },
       onChange(cb) {
         const { data } = sb.auth.onAuthStateChange(() => cb());

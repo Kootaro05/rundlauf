@@ -44,4 +44,12 @@ export interface Backend {
   playerEmails(): Promise<Record<string, string>>;
 }
 
-export class AppError extends Error {}
+export class AppError extends Error {
+  /** true, wenn der Server nicht erreichbar war (kein Netz), statt dass er abgelehnt hat */
+  constructor(message: string, readonly network = false) {
+    super(message);
+  }
+}
+
+export const isNetworkError = (e: unknown) =>
+  (e instanceof AppError && e.network) || e instanceof TypeError || (typeof navigator !== 'undefined' && !navigator.onLine);
