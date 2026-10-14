@@ -68,7 +68,7 @@ export function Avatar({ p, size }: { p: string; size: number }) {
   const url = avatar(p);
   return (
     <span className="avatar-tile" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.4, '--pc': color(p) } as CSSProperties}>
-      {url ? <img src={url} alt="" /> : <span className="ini">{initials(name(p))}</span>}
+      {url ? <img src={url} alt="" /> : initials(name(p))}
     </span>
   );
 }
