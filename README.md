@@ -27,26 +27,103 @@ Ohne `.env` läuft die App im **Demo-Modus** mit erfundenen Beispieldaten im Spe
 npm test
 ```
 
-## Supabase einrichten
+## Betrieb
 
-1. Auf [supabase.com](https://supabase.com) ein kostenloses Projekt anlegen.
-2. Im Dashboard unter **SQL Editor** den Inhalt von [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) ausführen.
-3. Dich selbst als ersten Spieler mit deiner E-Mail anlegen, siehe [`supabase/seed.example.sql`](supabase/seed.example.sql).
-4. Unter **Project Settings → API** die Project URL und den `anon` Key in eine `.env` kopieren (Vorlage: `.env.example`).
-5. Unter **Authentication → URL Configuration** die Adresse der App als *Site URL* und unter *Redirect URLs* eintragen
-   (lokal `http://localhost:5173`, später die Produktions-URL).
-6. `npm run dev`, oben rechts **Anmelden**, Login-Link aus der Mail öffnen.
+| Was | Wo | Wozu |
+|---|---|---|
+| App | **https://rundlauf.timberborn.de** (Vercel, Projekt `rundlauf`) | Wird bei jedem Push auf `main` automatisch neu gebaut |
+| Datenbank & Login | Supabase, Projekt `rundlauf` (Region Frankfurt) | Daten, Zugriffsregeln, Login per Mail-Code |
+| Mailversand | Resend, Domain `rundlauf.timberborn.de` (Region Irland) | Login-Mails von `auth@rundlauf.timberborn.de` |
+| DNS | Strato, Domain `timberborn.de` | Subdomain für App und Mailversand |
+| Code | https://github.com/Kootaro05/rundlauf | |
 
-### Login-Code in der Mail
+`https://rundlauf.vercel.app` funktioniert weiterhin, gilt auf dem Handy aber als eigene App mit eigener Anmeldung.
 
-In der installierten App auf dem iPhone öffnen sich Links aus Mails in Safari, nicht in der App.
-Darum meldet man sich mit dem **Code aus der Mail** an. Dafür muss der Code in den Mail-Vorlagen stehen:
-In Supabase unter **Authentication → Emails → Templates** bei **Magic Link** und bei **Confirm signup**
-(die bekommt, wer sich zum ersten Mal anmeldet) z. B. diese Zeile ergänzen:
+## Einrichtung von Grund auf
+
+So ist das laufende System aufgesetzt. Die Schritte braucht man nur für ein neues Projekt oder zum Nachvollziehen.
+
+### 1. Supabase
+
+1. Auf [supabase.com](https://supabase.com) ein Projekt anlegen (Free, Region *Central EU (Frankfurt)*). Beim Anlegen:
+   - **Enable Data API**: an
+   - **Automatically expose new tables**: aus (die Rechte vergibt das Schema selbst)
+   - **Enable automatic RLS**: an
+2. Im **SQL Editor** den Inhalt von [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) ausführen.
+3. Dich selbst als ersten Spieler anlegen, siehe [`supabase/seed.example.sql`](supabase/seed.example.sql).
+   Alle weiteren Spieler legt man danach in der App im Tab *Spieler* an.
+4. **Project URL** und **anon Key** (Project Settings → API Keys → *Legacy anon, service_role API keys*)
+   in eine `.env` kopieren, Vorlage: [`.env.example`](.env.example). Der `service_role`-/Secret-Key wird nicht gebraucht und gehört nirgends hin.
+5. **Authentication → URL Configuration**
+   - Site URL: `https://rundlauf.timberborn.de`
+   - Redirect URLs: `https://rundlauf.timberborn.de/**`, `https://rundlauf.vercel.app/**`, `http://localhost:5173/**`
+
+### 2. Mailversand über Resend
+
+Supabase verschickt ohne eigenen Mailserver nur wenige Mails pro Stunde, und die Mail-Vorlagen lassen sich
+dann nicht bearbeiten. Den Code in der Mail brauchen wir aber (siehe unten). Darum läuft der Versand über Resend.
+
+1. Auf [resend.com](https://resend.com) unter **Domains** `rundlauf.timberborn.de` anlegen, Region *Ireland*. *Receiving* bleibt aus.
+2. Bei Strato unter **Domainverwaltung → `timberborn.de` → DNS → TXT- und CNAME-Records** die drei Einträge aus Resend anlegen.
+   Die Präfixe gehören zur **Hauptdomain** und brauchen darum das `.rundlauf`:
+
+   | Präfix | Typ | Wert |
+   |---|---|---|
+   | `resend._domainkey.rundlauf` | TXT | DKIM-Schlüssel aus Resend (`p=MIGfMA…`) |
+   | `rsend.rundlauf` | CNAME | `rsend-euw1.forge.rmta.net` |
+   | `send.rundlauf` | CNAME | `send.forge.rmta.net` |
+
+3. In Resend verifizieren lassen, dann **API Keys → Create API Key**: Name `supabase-auth`, Permission *Sending access*,
+   Domain `rundlauf.timberborn.de`. Den Key direkt in Supabase eintragen, sonst nirgends speichern.
+4. In Supabase unter **Authentication → Emails → SMTP Settings** *Enable custom SMTP*:
+
+   | Feld | Wert |
+   |---|---|
+   | Sender email | `auth@rundlauf.timberborn.de` |
+   | Sender name | `Rundlauf` |
+   | Host | `smtp.resend.com` |
+   | Port | `465` |
+   | Username | `resend` |
+   | Password | der Resend-API-Key |
+
+Ein Strato-Postfach geht nicht: `rundlauf@timberborn.de` ist nur ein Alias ohne eigenes Passwort, und das Masterpostfach
+sollte Supabase nicht kennen. Fehler beim Versand stehen in Supabase unter **Logs → Auth** (nicht im API-Gateway-Log).
+
+### 3. Login-Code in der Mail
+
+In der installierten App auf dem iPhone öffnen sich Links aus Mails in Safari, nicht in der App, und die Anmeldung
+käme dort nicht an. Darum meldet man sich mit dem **Code aus der Mail** an. In Supabase unter
+**Authentication → Emails → Templates** bei **Magic link or OTP** und bei **Confirm sign up**
+(die bekommt, wer sich zum ersten Mal anmeldet):
+
+Subject:
+
+```
+Dein Rundlauf-Login: {{ .Token }}
+```
+
+Body (unter *Source*):
 
 ```html
-<p>Dein Code: <strong>{{ .Token }}</strong></p>
+<h2>Rundlauf-Analytics</h2>
+<p>Dein Code zum Anmelden:</p>
+<p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+<p>Oder im selben Browser diesen Link öffnen: <a href="{{ .ConfirmationURL }}">Anmelden</a></p>
+<p>Code und Link gelten nur kurz und nur einmal.</p>
 ```
+
+Der Code steht mit Absicht im Betreff, so sieht man ihn schon in der Benachrichtigung.
+
+### 4. Vercel und eigene Domain
+
+1. Auf [vercel.com](https://vercel.com) das GitHub-Repo `rundlauf` importieren. Preset *Vite*, sonst nichts ändern.
+2. Vor dem ersten Deploy unter **Environment Variables** `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` anlegen.
+   Die Supabase-Integration von Vercel **nicht** hinzufügen, sie würde ein zweites Projekt anlegen.
+3. **Settings → Domains**: `rundlauf.timberborn.de` für *Production* hinzufügen.
+4. Bei Strato die Subdomain `rundlauf` anlegen und in deren DNS-Einstellungen den **CNAME** auf den Wert von Vercel setzen
+   (aktuell `818709f23a2b98ab.vercel-dns-017.com`). Dadurch verschwinden die A- und AAAA-Einträge, die Strato
+   automatisch anlegt. Sie müssen weg, sonst landen manche Geräte bei Strato statt bei Vercel.
+   Die Resend-Einträge liegen auf eigenen Namen und bleiben unberührt.
 
 ### Wer darf was?
 
@@ -65,10 +142,13 @@ Die Seite ist eine PWA und lässt sich auf den Homescreen legen:
 Neue Versionen werden beim nächsten Öffnen automatisch übernommen. Die App-Icons entstehen aus
 `public/logo.svg` mit `npx pwa-assets-generator`.
 
-## Deployment
+Anmelden muss man sich **einmal pro Gerät und Browser**. Neu anmelden muss man sich nach Abmelden, gelöschten
+Browserdaten, im privaten Modus oder in Safari auf dem iPhone, wenn die Seite (nicht die installierte App) gut eine Woche nicht geöffnet wurde.
 
-`npm run build` erzeugt einen statischen Ordner `dist/`, der überall läuft (Vercel, Netlify, Cloudflare Pages, GitHub Pages).
-Die beiden `VITE_SUPABASE_*`-Variablen beim Hoster hinterlegen und die Produktions-URL in Supabase als Redirect-URL eintragen.
+## Änderungen ausrollen
+
+Push auf `main` reicht, Vercel baut und veröffentlicht nach etwa einer Minute. Änderungen am Datenbankschema
+müssen zusätzlich im Supabase **SQL Editor** ausgeführt werden; das Schema in `supabase/migrations/` ist die Referenz.
 
 ## Aufbau
 
