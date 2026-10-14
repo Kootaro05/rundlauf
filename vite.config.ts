@@ -30,7 +30,7 @@ export default defineConfig({
       workbox: {
         // Nur die App selbst wird zwischengespeichert. Daten kommen immer frisch von Supabase.
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        navigateFallbackDenylist: [/^\/auth/],
+        navigateFallbackDenylist: [/^\/auth/, /^\/api\//],
       },
     }),
   ],
