@@ -89,3 +89,57 @@ export function recordFor(pauses: Pause[], g: Granularity): PeriodRecord | null 
 }
 
 export const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)} %` : '–');
+
+/** Finalbilanz zwischen zwei Spielern: duels[a][b] = Siege von a gegen b */
+export type Duels = Record<string, Record<string, number>>;
+
+export function computeDuels(pauses: Pause[]): Duels {
+  const d: Duels = {};
+  for (const pa of pauses)
+    for (const r of pa.rounds) {
+      const f = roundInfo(r).final;
+      if (!f?.loser) continue;
+      (d[f.p] ??= {})[f.loser] = (d[f.p]?.[f.loser] ?? 0) + 1;
+    }
+  return d;
+}
+
+export interface Comeback {
+  p: string;
+  pause: Pause;
+  /** Größter Rückstand auf den Führenden während der Pause */
+  deficit: number;
+  end: number;
+}
+
+/** Wer als König aus einer Pause gegangen ist, nachdem er zwischendurch deutlich hinten lag. */
+export function computeComebacks(pauses: Pause[]): Comeback[] {
+  const out: Comeback[] = [];
+  for (const pa of pauses) {
+    if (!pa.endedAt) continue;
+    const end = balances(pa);
+    const king = kingOf(end);
+    if (!king) continue;
+    let deficit = 0;
+    for (let k = 1; k < pa.rounds.length; k++) {
+      const b = balances(pa, k);
+      deficit = Math.max(deficit, Math.max(...Object.values(b)) - (b[king] ?? 0));
+    }
+    if (deficit > 0) out.push({ p: king, pause: pa, deficit, end: end[king] });
+  }
+  return out.sort((a, b) => b.deficit - a.deficit || b.end - a.end);
+}
+
+/** Längste Serie gewonnener Finals am Stück */
+export function longestFinalStreak(pauses: Pause[], p: string): number {
+  let best = 0;
+  let cur = 0;
+  for (const pa of [...pauses].sort((a, b) => a.startedAt - b.startedAt))
+    for (const r of pa.rounds) {
+      const f = roundInfo(r).final;
+      if (!f || (f.p !== p && f.loser !== p)) continue;
+      cur = f.p === p ? cur + 1 : 0;
+      best = Math.max(best, cur);
+    }
+  return best;
+}

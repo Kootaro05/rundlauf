@@ -81,7 +81,7 @@ function PauseDetail({ pa }: { pa: Pause }) {
       <LineChart
         title="Kronenstand nach jeder Runde"
         ariaLabel="Kronenverlauf der Pause"
-        xLabels={['Start', ...pa.rounds.map((_, k) => `R${k + 1}`)]}
+        xLabels={['Start', ...pa.rounds.map((r) => `R${r.number}`)]}
         series={Object.keys(balances(pa)).map((p) => ({ id: p, values: Array.from({ length: n + 1 }, (_, k) => balances(pa, k)[p] ?? 0) }))}
       />
       {canWrite && (
@@ -103,13 +103,13 @@ function PauseDetail({ pa }: { pa: Pause }) {
       {edit && <p className="sub">Jede Änderung wird gegen die Regeln geprüft. Ein gelöschter Sieg kann zum Beispiel eine später gesetzte Krone ungültig machen, dann geht die Änderung nicht.</p>}
       <div className="timeline">
         {n === 0 && <p className="sub">Noch keine Runde gespielt.</p>}
-        {pa.rounds.map((r, idx) => {
+        {pa.rounds.map((r) => {
           const i = roundInfo(r);
           return (
             <div key={r.id} className={`tround ${i.final ? 'won' : ''}`}>
               <div className="row between">
                 <span className="row">
-                  <b>Runde {idx + 1}</b>
+                  <b>Runde {r.number}</b>
                   <span className="sub">{r.participants.length} Spieler · Pot {i.pot}{i.final ? '' : ' · läuft'}</span>
                 </span>
                 {edit && <button className="btn ghost small" disabled={busy} onClick={() => ops.deleteRound(r)}>Runde löschen</button>}

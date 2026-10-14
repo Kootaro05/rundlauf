@@ -142,6 +142,12 @@ th[aria-sort] button { color: var(--ink) }
 tr:last-child td { border-bottom: 0 }
 td { font-family: var(--f-mono); font-variant-numeric: tabular-nums }
 td:first-child { font-family: var(--f-body); font-weight: 600 }
+.linkbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px }
+.linkbtn:hover { text-decoration-color: var(--ball) }
+.win { color: var(--ok) }
+.loss { color: var(--danger) }
+.matrix th, .matrix td { text-align: center }
+.matrix th:first-child, .matrix td:first-child { text-align: left }
 .barcell { display: flex; align-items: center; gap: 8px; justify-content: flex-end }
 .bar { height: 8px; border-radius: 2px; background: var(--gold); min-width: 2px }
 .bar.neg { background: var(--danger) }

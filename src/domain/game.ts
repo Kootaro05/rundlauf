@@ -147,10 +147,10 @@ export function validatePause(pa: Pause): string | null {
     replay.rounds.push(cur);
     for (const e of r.events) {
       const err = checkEvent(replay, cur, e);
-      if (err) return `Runde ${idx + 1}: ${err}`;
+      if (err) return `Runde ${r.number}: ${err}`;
       cur.events.push(e);
     }
-    if (!isFinished(cur) && (pa.endedAt || idx < pa.rounds.length - 1)) return `Runde ${idx + 1} hätte kein Finale mehr.`;
+    if (!isFinished(cur) && (pa.endedAt || idx < pa.rounds.length - 1)) return `Runde ${r.number} hätte kein Finale mehr.`;
   }
   return null;
 }
