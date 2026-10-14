@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { computeElo, ELO_START } from '../domain/elo';
 import { fmtDate } from '../domain/periods';
 import { computeDuels, computeStats, longestFinalStreak, pct } from '../domain/stats';
@@ -9,7 +9,7 @@ import { plural, useApp } from './ui';
 
 /** Profilseite im E-Sport-Look. Nur für eingetragene Spieler. */
 export function PlayerProfile({ p }: { p: string }) {
-  const { data, isMember, closeProfile, name, realName, avatar, color, canEditPlayer, backend, run, busy } = useApp();
+  const { data, isMember, closeProfile, name, realName, avatar, color, canEditPlayer } = useApp();
   const elo = useMemo(() => computeElo(data.pauses), [data.pauses]);
   const player = data.players.find((x) => x.id === p);
   const [editing, setEditing] = useState(false);
@@ -38,13 +38,7 @@ export function PlayerProfile({ p }: { p: string }) {
     <div className="stack">
       <div className="row between">
         {back}
-        <span className="row">
-          <button className="btn small ghost" disabled={busy}
-            onClick={() => void run(() => backend.setHidden(p, !player.hidden), player.hidden ? 'Wieder in der Spielerauswahl' : 'Aus der Spielerauswahl ausgeblendet')}>
-            {player.hidden ? 'Einblenden' : 'Ausblenden'}
-          </button>
-          {canEditPlayer(p) && !editing && <button className="btn small" onClick={() => setEditing(true)}>Profil bearbeiten</button>}
-        </span>
+        {canEditPlayer(p) && !editing && <button className="btn small" onClick={() => setEditing(true)}>Profil bearbeiten</button>}
       </div>
 
       <section className="hero" style={{ '--pc': color(p) } as CSSProperties}>
@@ -65,7 +59,7 @@ export function PlayerProfile({ p }: { p: string }) {
         </div>
       </section>
 
-      {editing && <ProfileEditor p={p} onDone={() => setEditing(false)} />}
+      {editing && <ProfileEditor p={p} hidden={player.hidden} onDone={() => setEditing(false)} />}
 
       {!s ? (
         <p className="sub">Noch keine Pause gespielt.</p>
@@ -111,7 +105,7 @@ function Tile({ label, big, sub }: { label: string; big: number; sub: string }) 
   );
 }
 
-function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
+function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDone: () => void }) {
   const { backend, run, busy, priv, refreshPrivate, name, session, toast, color } = useApp();
   const [source, setSource] = useState<HTMLCanvasElement | null>(null);
   const info = priv.info[p];
@@ -121,8 +115,10 @@ function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
   const [first, setFirst] = useState(info?.firstName ?? '');
   const [last, setLast] = useState(info?.lastName ?? '');
   const [email, setEmail] = useState(account?.email ?? '');
-  const [uploading, setUploading] = useState(false);
+  // Liefert den gewählten Bildausschnitt, solange ein neues Bild im Zuschnitt-Rahmen liegt
+  const cropRef = useRef<(() => Promise<Blob>) | null>(null);
 
+  // Speichern übernimmt Namen, E-Mail und den gewählten Bildausschnitt in einem Schritt
   const save = async () => {
     const n = nick.trim().slice(0, 24);
     if (!n) return toast('Der Spitzname darf nicht leer sein.');
@@ -130,12 +126,12 @@ function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
       await backend.saveProfile(p, { name: n, firstName: first.trim() || null, lastName: last.trim() || null });
       // Die Login-E-Mail lässt sich nur ändern, solange sich der Spieler noch nie angemeldet hat
       if (!account?.linked && email.trim() !== (account?.email ?? '')) await backend.setEmail(p, email.trim() || null);
+      if (source && cropRef.current) await backend.uploadAvatar(p, await cropRef.current(), info?.avatarPath ?? null);
     }, 'Profil gespeichert');
     await refreshPrivate();
     if (ok) onDone();
   };
 
-  // Erst zuschneiden, dann hochladen
   const pick = async (file: File | undefined) => {
     if (!file) return;
     try {
@@ -143,12 +139,6 @@ function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e));
     }
-  };
-  const upload = async (image: Blob) => {
-    setUploading(true);
-    if (await run(() => backend.uploadAvatar(p, image, info?.avatarPath ?? null), 'Bild gespeichert')) setSource(null);
-    await refreshPrivate();
-    setUploading(false);
   };
 
   return (
@@ -169,28 +159,36 @@ function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
       <div className="stack">
         <h3>Profilbild</h3>
         <p className="sub">Am besten ein Bild mit durchsichtigem Hintergrund (PNG oder WebP), dann steht die Figur frei im Profil. Danach wählst du den Ausschnitt; alle Bilder haben dasselbe Hochformat.</p>
-        {source ? (
-          <AvatarCropper source={source} color={color(p)} busy={busy || uploading} onCancel={() => setSource(null)} onDone={(img) => void upload(img)} />
-        ) : (
-          <div className="row">
-            <label className="btn">
-              {uploading ? 'Lade hoch …' : info?.avatarPath ? 'Anderes Bild wählen' : 'Bild wählen'}
-              <input id="pf-img" type="file" accept="image/png,image/webp,image/jpeg" hidden disabled={uploading || busy}
-                onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
-            </label>
-            {info?.avatarPath && (
-              <button type="button" className="btn ghost" disabled={busy || uploading}
-                onClick={() => void run(() => backend.removeAvatar(p, info.avatarPath!), 'Bild entfernt').then(refreshPrivate)}>
-                Bild entfernen
-              </button>
-            )}
-          </div>
-        )}
+        {source && <AvatarCropper source={source} color={color(p)} cropRef={cropRef} />}
+        <div className="row">
+          <label className="btn">
+            {source || info?.avatarPath ? 'Anderes Bild wählen' : 'Bild wählen'}
+            <input id="pf-img" type="file" accept="image/png,image/webp,image/jpeg" hidden disabled={busy}
+              onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
+          </label>
+          {info?.avatarPath && !source && (
+            <button type="button" className="btn ghost" disabled={busy}
+              onClick={() => void run(() => backend.removeAvatar(p, info.avatarPath!), 'Bild entfernt').then(refreshPrivate)}>
+              Bild entfernen
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="stack">
+        <h3>Spielerauswahl</h3>
+        <div className="row">
+          <button type="button" className="btn ghost" disabled={busy}
+            onClick={() => void run(() => backend.setHidden(p, !hidden), hidden ? 'Wieder in der Spielerauswahl' : 'Aus der Spielerauswahl ausgeblendet')}>
+            {hidden ? 'Wieder einblenden' : 'Ausblenden'}
+          </button>
+          <span className="sub">Ausgeblendete Spieler stehen nicht mehr in der Auswahl für neue Runden. Ihre Statistik bleibt.</span>
+        </div>
       </div>
 
       <div className="row">
-        <button className="btn primary" disabled={busy}>Speichern</button>
-        <button type="button" className="btn ghost" onClick={onDone}>Abbrechen</button>
+        <button className="btn primary" disabled={busy}>{busy ? 'Speichere …' : 'Speichern'}</button>
+        <button type="button" className="btn ghost" onClick={onDone}>Zurück</button>
       </div>
     </form>
   );

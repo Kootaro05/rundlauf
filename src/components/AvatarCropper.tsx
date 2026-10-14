@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type PointerEvent } from 'react';
 import { AVATAR_ASPECT, exportCrop, type Crop } from '../lib/image';
 
 const MIN_ZOOM = 0.5;
@@ -9,12 +9,11 @@ const MAX_ZOOM = 5;
  * und zoomen (zwei Finger, Mausrad oder Regler). Der Rahmen zeigt den Hintergrund in der Spielerfarbe,
  * so wie das Bild später im Profil steht.
  */
-export function AvatarCropper({ source, color, busy, onCancel, onDone }: {
+export function AvatarCropper({ source, color, cropRef }: {
   source: HTMLCanvasElement;
   color: string;
-  busy: boolean;
-  onCancel: () => void;
-  onDone: (image: Blob) => void;
+  /** Wird mit einer Funktion belegt, die den gewählten Ausschnitt als Bild liefert (aufgerufen beim Speichern) */
+  cropRef: MutableRefObject<(() => Promise<Blob>) | null>;
 }) {
   const frame = useRef<HTMLDivElement>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -97,6 +96,12 @@ export function AvatarCropper({ source, color, busy, onCancel, onDone }: {
     ps.set(e.pointerId, next);
   };
 
+  // Beim Speichern holt sich das Formular hierüber den aktuellen Ausschnitt
+  useEffect(() => {
+    cropRef.current = crop ? () => exportCrop(source, crop, frameW) : null;
+    return () => { cropRef.current = null; };
+  }, [crop, frameW, source, cropRef]);
+
   const zoom = crop ? crop.scale / fitScale.current : 1;
   const frameH = frameW / AVATAR_ASPECT;
 
@@ -138,14 +143,9 @@ export function AvatarCropper({ source, color, busy, onCancel, onDone }: {
           onChange={(e) => zoomTo(fitScale.current * Number(e.target.value), frameW / 2, frameH / 2)}
         />
       </label>
-      <p className="sub">Ziehen zum Verschieben, mit zwei Fingern, dem Regler oder dem Mausrad zoomen.</p>
+      <p className="sub">Ziehen zum Verschieben, mit zwei Fingern, dem Regler oder dem Mausrad zoomen. Gespeichert wird mit „Speichern“.</p>
       <div className="row">
-        <button type="button" className="btn primary" disabled={busy || !crop}
-          onClick={() => crop && void exportCrop(source, crop, frameW).then(onDone)}>
-          Übernehmen
-        </button>
-        <button type="button" className="btn" onClick={() => reset(frameW)}>Zurücksetzen</button>
-        <button type="button" className="btn ghost" onClick={onCancel}>Abbrechen</button>
+        <button type="button" className="btn small" onClick={() => reset(frameW)}>Ausschnitt zurücksetzen</button>
       </div>
     </div>
   );
