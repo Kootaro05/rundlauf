@@ -72,7 +72,11 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       async signIn(email) {
         const redirect = window.location.origin + window.location.pathname;
         const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect } });
-        if (error) throw new AppError(`Login-Link konnte nicht gesendet werden: ${error.message}`);
+        if (error) throw new AppError(`Login-Mail konnte nicht gesendet werden: ${error.message}`);
+      },
+      async verifyCode(email, code) {
+        const { error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+        if (error) throw new AppError('Der Code stimmt nicht oder ist abgelaufen. Fordere einen neuen an.');
       },
       async signOut() {
         await sb.auth.signOut();

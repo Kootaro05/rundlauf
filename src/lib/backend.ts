@@ -9,7 +9,10 @@ export interface Session {
 export interface AuthApi {
   current(): Promise<Session | null>;
   onChange(cb: () => void): () => void;
+  /** Schickt eine Mail mit Login-Link und Code. */
   signIn(email: string): Promise<void>;
+  /** Meldet mit dem Code aus der Mail an. Nötig in der installierten App auf dem iPhone, wo Links in Safari landen. */
+  verifyCode(email: string, code: string): Promise<void>;
   signOut(): Promise<void>;
 }
 

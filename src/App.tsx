@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { History } from './components/History';
 import { Live } from './components/Live';
@@ -17,6 +17,29 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
+/** Chrome/Edge/Android bieten die Installation über dieses Ereignis an (Safari kennt es nicht). */
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+}
+
+function useInstallPrompt() {
+  const [evt, setEvt] = useState<BeforeInstallPromptEvent | null>(null);
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setEvt(e as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => setEvt(null);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+  return evt && (() => void evt.prompt().finally(() => setEvt(null)));
+}
+
 function initialTab(): Tab {
   try {
     const t = localStorage.getItem('rk.tab');
@@ -34,6 +57,7 @@ export default function App() {
   const [msg, setMsg] = useState<string | null>(null);
   const [login, setLogin] = useState(false);
   const toastTimer = useRef<number>();
+  const install = useInstallPrompt();
 
   const setTab = (t: Tab) => {
     setTabState(t);
@@ -102,6 +126,7 @@ export default function App() {
                 {r ? <><span>Runde {r.number}</span><CrownIcon /><b className="num">{roundInfo(r).pot}</b><span>im Pot</span></> : <span>Pause läuft seit {fmtTime(pa.startedAt)}</span>}
               </div>
             )}
+            {install && <button className="authbtn" onClick={install}>Installieren</button>}
             {backend.kind === 'supabase' && ready && (
               session
                 ? <button className="authbtn" onClick={() => void backend.auth.signOut()} title={session.email ?? ''}>Abmelden</button>

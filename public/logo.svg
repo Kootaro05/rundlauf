@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Platte von oben mit Netz, Ball fliegt im Bogen darüber. Vollflächig, damit es auch als maskable Icon funktioniert. -->
+  <rect width="512" height="512" fill="#1b5687"/>
+  <rect x="112" y="168" width="288" height="200" fill="none" stroke="#ffffff" stroke-width="14"/>
+  <line x1="112" y1="268" x2="400" y2="268" stroke="#ffffff" stroke-opacity=".55" stroke-width="6"/>
+  <line x1="256" y1="152" x2="256" y2="384" stroke="#ffffff" stroke-width="10"/>
+  <path d="M158 330 Q 186 70 322 128" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-dasharray="0.1 24"/>
+  <circle cx="340" cy="132" r="30" fill="#e0661a"/>
+</svg>

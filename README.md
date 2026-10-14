@@ -37,12 +37,33 @@ npm test
    (lokal `http://localhost:5173`, später die Produktions-URL).
 6. `npm run dev`, oben rechts **Anmelden**, Login-Link aus der Mail öffnen.
 
+### Login-Code in der Mail
+
+In der installierten App auf dem iPhone öffnen sich Links aus Mails in Safari, nicht in der App.
+Darum meldet man sich mit dem **Code aus der Mail** an. Dafür muss der Code in den Mail-Vorlagen stehen:
+In Supabase unter **Authentication → Emails → Templates** bei **Magic Link** und bei **Confirm signup**
+(die bekommt, wer sich zum ersten Mal anmeldet) z. B. diese Zeile ergänzen:
+
+```html
+<p>Dein Code: <strong>{{ .Token }}</strong></p>
+```
+
 ### Wer darf was?
 
 - **Lesen** (Dashboard, Verlauf, Live-Stand): jeder mit dem Link, ohne Login.
 - **Eintragen**: nur wer angemeldet ist **und** dessen E-Mail bei einem Spieler hinterlegt ist.
   Neue Mitspieler trägst du im Tab *Spieler* mit E-Mail ein. Beim ersten Login werden sie automatisch verknüpft.
 - E-Mails sind nur für eingeloggte Mitglieder sichtbar.
+
+## Als App installieren
+
+Die Seite ist eine PWA und lässt sich auf den Homescreen legen:
+
+- **iPhone:** in Safari öffnen → Teilen → *Zum Home-Bildschirm*
+- **Android / Chrome / Edge:** Button *Installieren* oben rechts oder im Browser-Menü *App installieren*
+
+Neue Versionen werden beim nächsten Öffnen automatisch übernommen. Die App-Icons entstehen aus
+`public/logo.svg` mit `npx pwa-assets-generator`.
 
 ## Deployment
 

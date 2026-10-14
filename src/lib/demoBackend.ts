@@ -21,6 +21,7 @@ export function createDemoBackend(): Backend {
       current: async () => ({ email: 'demo', playerId: 'demo' }),
       onChange: () => () => {},
       signIn: async () => {},
+      verifyCode: async () => {},
       signOut: async () => {},
     },
     load: async () => structuredClone(data),
