@@ -271,16 +271,19 @@ function RunningRound({ pa, r }: { pa: Pause; r: Round }) {
 
 function Final({ pa, r }: { pa: Pause; r: Round }) {
   const { backend, run, busy, canWrite, name } = useApp();
-  const [server, setServer] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const rule = serveRule(pa, r);
   const i = roundInfo(r);
   const king = kingOf(balances(pa));
   if (!rule) return null;
   const crownsOf = (p: string) => (p === rule.a ? rule.crownsA : rule.crownsB);
+  // Weniger Kronen → schlägt automatisch auf. Bei Gleichstand wird die Angabe ausgespielt und hier eingetragen.
+  const server = rule.server ?? picked;
+  const tie = rule.server === null;
 
-  const text = rule.decider
-    ? `${name(rule.decider)} hat mehr Kronen (${Math.max(rule.crownsA, rule.crownsB)}:${Math.min(rule.crownsA, rule.crownsB)}) und entscheidet, wer aufschlägt.`
-    : `Gleich viele Kronen (${rule.crownsA}:${rule.crownsB}). Erst um die Angabe spielen (einwerfen), der Gewinner schlägt auf.`;
+  const text = !tie
+    ? `${name(rule.server!)} hat weniger Kronen (${Math.min(rule.crownsA, rule.crownsB)}:${Math.max(rule.crownsA, rule.crownsB)}) und schlägt auf.`
+    : `Gleich viele Kronen (${rule.crownsA}:${rule.crownsB}). Erst die Angabe ausspielen (einwerfen), der Gewinner schlägt auf.`;
 
   const win = (p: string) =>
     run(
@@ -292,11 +295,13 @@ function Final({ pa, r }: { pa: Pause; r: Round }) {
     <div className="fin">
       <div className="row"><Dot p={p} /><span className="sub"><CrownIcon /> {crownsOf(p)}{p === king ? ' · König' : ''}</span></div>
       <div className="nm">{name(p)}</div>
+      {tie && canWrite ? (
+        <button className="chip" aria-pressed={picked === p} onClick={() => setPicked(picked === p ? null : p)}>Angabe gewonnen · schlägt auf</button>
+      ) : (
+        server === p && <span className="tag gold" style={{ justifySelf: 'start' }}>Schlägt auf</span>
+      )}
       {canWrite && (
-        <>
-          <button className="chip" aria-pressed={server === p} onClick={() => setServer(server === p ? null : p)}>Schlägt auf</button>
-          <button className="btn primary" disabled={busy} onClick={() => void win(p)}>Gewinnt · +{i.pot} <CrownIcon /></button>
-        </>
+        <button className="btn primary" disabled={busy || !server} onClick={() => void win(p)}>Gewinnt · +{i.pot} <CrownIcon /></button>
       )}
     </div>
   );
@@ -304,6 +309,7 @@ function Final({ pa, r }: { pa: Pause; r: Round }) {
   return (
     <>
       <div className="note"><b>Finale um einen Punkt.</b> {text} Im Finale können keine Kronen gesetzt werden.</div>
+      {tie && canWrite && !picked && <p className="sub">Erst eintragen, wer die Angabe gewonnen hat, dann den Sieger.</p>}
       <div className="final">{side(rule.a)}<div className="vs">VS</div>{side(rule.b)}</div>
     </>
   );

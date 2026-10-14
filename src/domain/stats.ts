@@ -19,11 +19,15 @@ export interface PlayerStats {
   maxPot: number;
   /** Pausen, die als König beendet wurden */
   koenig: number;
+  /** Finals mit eigenem Aufschlag */
+  aufschlaege: number;
+  /** Finals mit eigenem Aufschlag, die man auch gewonnen hat */
+  ass: number;
 }
 
 const empty = (p: string): PlayerStats => ({
   p, pausen: 0, runden: 0, finals: 0, siege: 0, gewonnen: 0, gesetzt: 0,
-  netto: 0, beste: 0, schwimmer: 0, ersterRaus: 0, maxPot: 0, koenig: 0,
+  netto: 0, beste: 0, schwimmer: 0, ersterRaus: 0, maxPot: 0, koenig: 0, aufschlaege: 0, ass: 0,
 });
 
 export function computeStats(list: Pause[]): Record<string, PlayerStats> {
@@ -53,6 +57,10 @@ export function computeStats(list: Pause[]): Record<string, PlayerStats> {
       w.gewonnen += pot;
       w.maxPot = Math.max(w.maxPot, pot);
       if (i.final.loser) S(i.final.loser).finals++;
+      if (i.final.server) {
+        S(i.final.server).aufschlaege++;
+        if (i.final.server === i.final.p) w.ass++;
+      }
     }
   }
   return s;

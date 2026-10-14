@@ -82,8 +82,8 @@ export interface ServeRule {
   b: string;
   crownsA: number;
   crownsB: number;
-  /** Wer mehr Kronen hat und entscheidet, wer aufschlägt; null bei Gleichstand (dann wird ausgespielt). */
-  decider: string | null;
+  /** Wer weniger Kronen hat, schlägt auf; null bei Gleichstand (dann wird die Angabe ausgespielt). */
+  server: string | null;
 }
 
 export function serveRule(pa: Pause, r: Round): ServeRule | null {
@@ -93,7 +93,7 @@ export function serveRule(pa: Pause, r: Round): ServeRule | null {
   const bal = balances(pa);
   const crownsA = bal[a] ?? 0;
   const crownsB = bal[b] ?? 0;
-  return { a, b, crownsA, crownsB, decider: crownsA === crownsB ? null : crownsA > crownsB ? a : b };
+  return { a, b, crownsA, crownsB, server: crownsA === crownsB ? null : crownsA < crownsB ? a : b };
 }
 
 export const isFinished = (r: Round) => roundInfo(r).final !== null;

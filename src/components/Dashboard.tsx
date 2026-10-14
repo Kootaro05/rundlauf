@@ -39,6 +39,8 @@ export function Dashboard() {
     { k: 'siege', label: 'Siege', v: (x) => x.siege },
     { k: 'quote', label: 'Siegquote', v: (x) => (x.runden ? x.siege / x.runden : 0), fmt: (x) => pct(x.siege, x.runden) },
     { k: 'finals', label: 'Finals', v: (x) => x.finals },
+    { k: 'aufschlaege', label: 'Aufschläge', v: (x) => x.aufschlaege, fmt: (x) => <>{x.aufschlaege} <span className="dim">{pct(x.aufschlaege, x.finals)}</span></> },
+    { k: 'ass', label: 'Ass', v: (x) => x.ass, fmt: (x) => <>{x.ass} <span className="dim">{pct(x.ass, x.aufschlaege)}</span></> },
     { k: 'gewonnen', label: 'Gewonnen', v: (x) => x.gewonnen },
     { k: 'gesetzt', label: 'Gesetzt', v: (x) => x.gesetzt },
     { k: 'schwimmer', label: 'Schwimmer', v: (x) => x.schwimmer, fmt: (x) => <>{x.schwimmer} <span className="dim">{pct(x.schwimmer, x.runden)}</span></> },
@@ -128,7 +130,9 @@ function Awards({ rows, label }: { rows: PlayerStats[]; label: string }) {
   const sw = pick((x) => x.schwimmer + x.schwimmer / (x.runden || 1));
   if (sw?.schwimmer) aw.push(['Rettungsschwimmer', sw, `${sw.schwimmer}× Schwimmer · ${pct(sw.schwimmer, sw.runden)} der Runden`]);
   const gs = pick((x) => x.gesetzt);
-  if (gs?.gesetzt) aw.push(['Kronen-Verprasser', gs, `${plural(gs.gesetzt, 'Krone', 'Kronen')} gesetzt`]);
+  if (gs?.gesetzt) aw.push(['Kronen-Bonze', gs, `${plural(gs.gesetzt, 'Krone', 'Kronen')} gesetzt`]);
+  const as = pick((x) => x.ass + x.ass / (x.aufschlaege || 1));
+  if (as?.ass) aw.push(['Ass', as, `${as.ass} von ${plural(as.aufschlaege, 'Aufschlag', 'Aufschlägen')} im Finale selbst gewonnen`]);
   const pp = pick((x) => x.maxPot);
   if (pp?.maxPot) aw.push(['Pot-Pirat', pp, `größter gewonnener Pot: ${pp.maxPot}`]);
   const fr = pick((x) => x.ersterRaus / x.runden, (x) => x.runden >= 3);

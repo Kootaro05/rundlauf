@@ -1,4 +1,4 @@
-import { crownCheck, roundInfo } from './game';
+import { crownCheck, roundInfo, serveRule } from './game';
 import type { Data, GameEvent, Pause, Player, Round } from './types';
 
 /** Erfundene Beispieldaten (Informatik-Pioniere), deterministisch erzeugt. */
@@ -55,7 +55,8 @@ export function makeDemo(now = Date.now()): Data {
         const [a, b] = i.active;
         const win = rnd() < sk(a) / (sk(a) + sk(b)) ? a : b;
         t += 20000;
-        ev(r, { type: 'final', p: win, loser: win === a ? b : a, server: rnd() < 0.5 ? a : b, pot: i.pot, t });
+        const server = serveRule(pa, r)?.server ?? (rnd() < 0.5 ? a : b);
+        ev(r, { type: 'final', p: win, loser: win === a ? b : a, server, pot: i.pot, t });
         t += 10000;
       }
       pa.endedAt = t + 30000;

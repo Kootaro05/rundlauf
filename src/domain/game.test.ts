@@ -77,13 +77,13 @@ describe('Kronen', () => {
 });
 
 describe('Finale', () => {
-  it('wer mehr Kronen hat, entscheidet die Angabe; Gleichstand wird ausgespielt', () => {
+  it('wer weniger Kronen hat, schlägt auf; Gleichstand wird ausgespielt', () => {
     const pa = pause(['a', 'b'], won(['a', 'b'], 'a', 'b'));
     const r = round(['a', 'b']);
     pa.rounds.push(r);
-    expect(serveRule(pa, r)?.decider).toBe('a');
+    expect(serveRule(pa, r)?.server).toBe('b');
     const tie = pause(['a', 'b'], round(['a', 'b']));
-    expect(serveRule(tie, tie.rounds[0])?.decider).toBeNull();
+    expect(serveRule(tie, tie.rounds[0])?.server).toBeNull();
   });
 
   it('eine Runde mit Finale ist abgeschlossen', () => {
@@ -100,6 +100,17 @@ describe('Statistik', () => {
     const s = computeStats([pa]);
     expect(s.c).toMatchObject({ runden: 1, schwimmer: 1, ersterRaus: 1, netto: 0 });
     expect(s.a).toMatchObject({ runden: 2, siege: 1, finals: 2, netto: 1 });
+  });
+
+  it('zählt Aufschläge im Finale und Asse (selbst aufgeschlagen und gewonnen)', () => {
+    const fin = (winner: string, loser: string, server: string): Round => {
+      const r = won(['a', 'b'], winner, loser);
+      r.events[0].server = server;
+      return r;
+    };
+    const s = computeStats([pause(['a', 'b'], fin('a', 'b', 'a'), fin('b', 'a', 'a'), fin('b', 'a', 'b'))]);
+    expect(s.a).toMatchObject({ aufschlaege: 2, ass: 1 });
+    expect(s.b).toMatchObject({ aufschlaege: 1, ass: 1 });
   });
 
   it('Tagesrekord nimmt den besten Tag', () => {

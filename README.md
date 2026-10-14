@@ -8,7 +8,7 @@ Vite + React + TypeScript, Daten und Login über Supabase.
 - Wer einen Fehler macht, fliegt raus. Der **erste** Fehler einer Runde gibt automatisch den **Schwimmer**: Der Spieler bleibt drin.
 - Statt rauszufliegen kann man eine **Krone setzen**: höchstens eine pro Runde. Der **König** (allein die meisten Kronen) darf beliebig viele setzen, solange er König ist und Kronen hat.
 - Bleiben zwei übrig, gibt es das **Finale** um einen Punkt. Im Finale werden keine Kronen gesetzt; bei drei Spielern kann eine Krone das Finale verhindern.
-- Wer mehr Kronen hat, entscheidet, wer im Finale aufschlägt. Bei Gleichstand wird die Angabe ausgespielt.
+- Wer weniger Kronen hat, schlägt im Finale auf. Bei Gleichstand wird die Angabe ausgespielt (einwerfen), der Gewinner schlägt auf.
 - Der Pot startet jede Runde bei 1 Krone, gesetzte Kronen kommen dazu. Der Finalsieger bekommt den ganzen Pot.
 - Jede Pause startet für alle bei 0 Kronen.
 
