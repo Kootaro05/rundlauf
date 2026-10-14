@@ -10,7 +10,7 @@ import { plural, useApp } from './ui';
 /** Profilseite im E-Sport-Look. Nur für eingetragene Spieler. */
 export function PlayerProfile({ p }: { p: string }) {
   const { data, isMember, closeProfile, name, realName, avatar, color, canEditPlayer } = useApp();
-  // ELO = laufendes Semester, Gesamt-ELO = seit dem ersten Spiel
+  // Semester-ELO = laufendes Semester (bestimmt die Platzierung), ELO = seit dem ersten Spiel
   const elo = useMemo(() => semesterElo(data.pauses), [data.pauses]);
   const eloAll = useMemo(() => computeElo(data.pauses), [data.pauses]);
   const player = data.players.find((x) => x.id === p);
@@ -48,15 +48,16 @@ export function PlayerProfile({ p }: { p: string }) {
         {rank > 0 && <span className="hero-rank" aria-hidden="true">#{rank}</span>}
         <div className="hero-info">
           <div className="hero-top">
-            {/* Gesamt-ELO groß, im selben Stil wie die Platzzahl rechts */}
-            <div className="hero-elo">
-              <span className="v num">{ratingAll}</span>
-              <span className="l">Gesamt-ELO</span>
-            </div>
             <div className="hero-badges">
               {rank > 0 && <span className="hero-badge">Platz {rank} von {ranking.length}</span>}
-              <span className="hero-badge">ELO {rating}</span>
+              <span className="hero-badge">Semester-ELO {rating}</span>
+              <span className="hero-badge">ELO {ratingAll}</span>
               {player.hidden && <span className="hero-badge">ausgeblendet</span>}
+            </div>
+            {/* ELO zusätzlich groß als Wasserzeichen, im selben Stil wie die Platzzahl rechts */}
+            <div className="hero-elo" aria-hidden="true">
+              <span className="v num">{ratingAll}</span>
+              <span className="l">ELO</span>
             </div>
           </div>
           <div>
@@ -76,8 +77,8 @@ export function PlayerProfile({ p }: { p: string }) {
       ) : (
         <>
           <div className="tiles">
-            <Tile label="ELO · Semester" big={rating} sub={rank > 0 ? `Platz ${rank} von ${ranking.length} · Bestwert ${Math.round(elo.peak[p] ?? ELO_START)}` : 'In diesem Semester noch nicht gespielt'} />
-            <Tile label="Gesamt-ELO" big={ratingAll} sub={`Bestwert aller Zeiten ${Math.round(eloAll.peak[p] ?? ELO_START)}`} />
+            <Tile label="ELO" big={ratingAll} sub={`Bestwert aller Zeiten ${Math.round(eloAll.peak[p] ?? ELO_START)}`} />
+            <Tile label="Semester-ELO" big={rating} sub={rank > 0 ? `Platz ${rank} von ${ranking.length} · Bestwert ${Math.round(elo.peak[p] ?? ELO_START)}` : 'In diesem Semester noch nicht gespielt'} />
             <Tile label="Kronen gesamt" big={s.netto} sub={`Ø ${(s.netto / s.pausen).toFixed(1).replace('.', ',')} pro Pause · beste Pause ${s.beste}`} />
             <Tile label="Siege" big={s.siege} sub={`${pct(s.siege, s.runden)} von ${plural(s.runden, 'Runde', 'Runden')} · ${s.siege} von ${s.finals} Finals`} />
             <Tile label="Längste Serie" big={longestFinalStreak(data.pauses, p)} sub="Finals am Stück gewonnen" />
@@ -92,8 +93,8 @@ export function PlayerProfile({ p }: { p: string }) {
             {angst?.l > 0 && <p className="sub">Angstgegner: <b>{name(angst.o)}</b>, im Finale {angst.w}:{angst.l}</p>}
             {history.length > 1 && (
               <LineChart
-                title="Gesamt-ELO-Verlauf"
-                ariaLabel={`Gesamt-ELO-Verlauf von ${name(p)}`}
+                title="ELO-Verlauf"
+                ariaLabel={`ELO-Verlauf von ${name(p)}`}
                 baseline={ELO_START}
                 xLabels={history.map((h) => fmtDate(h.t).slice(0, 6))}
                 series={[{ id: p, values: history.map((h) => h.r) }]}

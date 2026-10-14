@@ -13,7 +13,7 @@ export function Dashboard() {
   const { data, name, isMember, openProfile } = useApp();
   const [period, setPeriod] = useState<Granularity>('all');
   const [sort, setSort] = useState('netto');
-  // ELO = laufendes Semester (startet jedes Semester bei 1000), Gesamt-ELO = seit dem ersten Spiel
+  // Semester-ELO = laufendes Semester (startet jedes Semester bei 1000), ELO = seit dem ersten Spiel
   const elo = useMemo(() => semesterElo(data.pauses), [data.pauses]);
   const eloAll = useMemo(() => computeElo(data.pauses), [data.pauses]);
 
@@ -45,8 +45,9 @@ export function Dashboard() {
         </span>
       ),
     },
+    { k: 'elo', label: 'ELO', v: (x) => eloAllNow(x.p), fmt: (x) => Math.round(eloAllNow(x.p)) },
     {
-      k: 'elo', label: 'ELO', v: (x) => eloNow(x.p),
+      k: 'eloSem', label: 'Semester-ELO', v: (x) => eloNow(x.p),
       fmt: (x) => (
         <>
           {Math.round(eloNow(x.p))}
@@ -54,7 +55,6 @@ export function Dashboard() {
         </>
       ),
     },
-    { k: 'eloAll', label: 'Gesamt-ELO', v: (x) => eloAllNow(x.p), fmt: (x) => Math.round(eloAllNow(x.p)) },
     { k: 'avg', label: 'Ø / Pause', v: (x) => (x.pausen ? x.netto / x.pausen : 0), fmt: (x) => (x.pausen ? (x.netto / x.pausen).toFixed(1).replace('.', ',') : '–') },
     { k: 'pausen', label: 'Pausen', v: (x) => x.pausen },
     { k: 'runden', label: 'Runden', v: (x) => x.runden },
@@ -101,13 +101,9 @@ export function Dashboard() {
           })}
           {(eloLeader || allLeader) && (
             <div className="tile">
-              <h3>ELO · Semester</h3>
-              {eloLeader ? (
-                <div className="big num">{Math.round(elo.rating[eloLeader])}<small>{name(eloLeader)}</small></div>
-              ) : (
-                <div className="big num">{ELO_START}<small>noch niemand</small></div>
-              )}
-              <p className="sub">Vorne in der Gesamt-ELO: {name(allLeader)} ({Math.round(eloAll.rating[allLeader])})</p>
+              <h3>ELO</h3>
+              <div className="big num">{Math.round(eloAll.rating[allLeader])}<small>{name(allLeader)}</small></div>
+              <p className="sub">Semester-ELO vorne: {eloLeader ? `${name(eloLeader)} (${Math.round(elo.rating[eloLeader])})` : `noch niemand (${ELO_START})`}</p>
               <p className="sub">Bestwert aller Zeiten: {Math.round(eloAll.peak[peakHolder])} ({name(peakHolder)})</p>
             </div>
           )}
@@ -125,8 +121,8 @@ export function Dashboard() {
         </div>
         <p className="sub">
           {plural(list.length, 'Pause', 'Pausen')} · Quoten zählen nur Runden, bei denen der Spieler dabei war. Spaltenkopf antippen zum Sortieren{isMember ? ', Namen antippen fürs Profil' : ''}.
-          ELO bewertet jede Runde nach Platzierung und startet jedes Semester für alle bei 1000{period !== 'all' ? ', daneben die Veränderung im Zeitraum' : ''}.
-          Die Gesamt-ELO läuft seit dem ersten Spiel weiter.
+          ELO bewertet jede Runde nach Platzierung und läuft seit dem ersten Spiel. Die Semester-ELO startet jedes Semester
+          für alle bei 1000{period !== 'all' ? ', daneben ihre Veränderung im Zeitraum' : ''}.
         </p>
         {rows.length ? (
           <div className="scroll">

@@ -36,7 +36,7 @@ describe('ELO', () => {
     expect(strongB.rating.a).toBeGreaterThan(weakB.rating.a);
   });
 
-  it('Semester-ELO zählt nur das laufende Semester, die Gesamt-ELO alles', () => {
+  it('Semester-ELO zählt nur das laufende Semester, die ELO alles', () => {
     const sommer = new Date(2026, 5, 1).getTime();
     const winter = new Date(2026, 9, 14).getTime();
     const pausen = [pause(sommer, abc()), pause(winter, abc())];

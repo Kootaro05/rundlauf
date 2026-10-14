@@ -75,7 +75,7 @@ export function computeElo(pauses: Pause[]): EloResult {
 
 /**
  * ELO des laufenden Semesters: Zu Semesterbeginn starten alle wieder bei 1000,
- * es zählen nur Pausen aus diesem Semester. Die Gesamt-ELO (computeElo über alle Pausen) läuft weiter.
+ * es zählen nur Pausen aus diesem Semester. Die ELO (computeElo über alle Pausen) läuft weiter.
  */
 export function semesterElo(pauses: Pause[], now = Date.now()): EloResult {
   const key = periodKey(now, 'semester');
