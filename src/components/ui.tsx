@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type CSSProperties } from 'react';
 import type { Data, NewEvent, Pause, PrivateData } from '../domain/types';
 import type { Backend, Session } from '../lib/backend';
 
@@ -59,14 +59,16 @@ export function Dot({ p }: { p: string }) {
 const initials = (s: string) =>
   s.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
 
-/** Profilbild ohne Rahmen (freigestellte Bilder bleiben freigestellt). Ohne Bild: Initialen in der Spielerfarbe. */
+/**
+ * Profilbild als Kachel in der Spielerfarbe. Freigestellte Bilder stehen ohne Rahmen unten bündig darin.
+ * Ohne Bild: Initialen.
+ */
 export function Avatar({ p, size }: { p: string; size: number }) {
   const { avatar, name, color } = useApp();
   const url = avatar(p);
-  if (url) return <img className="avatar" src={url} alt="" style={{ width: size, height: size }} />;
   return (
-    <span className="avatar-ph" aria-hidden="true" style={{ width: size, height: size, background: color(p), fontSize: size * 0.4 }}>
-      {initials(name(p))}
+    <span className="avatar-tile" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.4, '--pc': color(p) } as CSSProperties}>
+      {url ? <img src={url} alt="" /> : <span className="ini">{initials(name(p))}</span>}
     </span>
   );
 }

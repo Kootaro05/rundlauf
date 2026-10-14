@@ -30,10 +30,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ball); outl
 [hidden] { display: none !important }
 
 /* Platte von oben: Rand, Mittellinie zwischen den beiden Titelzeilen, Ballflug über die Linie */
-.top { --title: 50px; --pad: 22px; --gap: 14px; --inset: env(safe-area-inset-top, 0px); background: var(--table); color: var(--table-ink); position: relative; overflow: hidden; padding-top: var(--inset) }
+/* env() steht direkt in den Eigenschaften statt in einer Variable: so wertet iOS den Abstand zur Statusleiste zuverlässig aus */
+.top { --title: 50px; --pad: 22px; --gap: 14px; background: var(--table); color: var(--table-ink); position: relative; overflow: hidden; padding-top: env(safe-area-inset-top, 0px) }
 .top .wrap { position: relative; padding-block: var(--pad) 24px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap }
-.top::before { content: ""; position: absolute; inset: calc(8px + var(--inset)) 8px 8px; border: 2px solid rgba(255,255,255,.9); pointer-events: none }
-.top::after { content: ""; position: absolute; left: 8px; right: 8px; top: calc(var(--inset) + var(--pad) + var(--title) * .86 + var(--gap) / 2); border-top: 2px solid rgba(255,255,255,.55); pointer-events: none }
+.top::before { content: ""; position: absolute; inset: calc(8px + env(safe-area-inset-top, 0px)) 8px 8px; border: 2px solid rgba(255,255,255,.9); pointer-events: none }
+.top::after { content: ""; position: absolute; left: 8px; right: 8px; top: calc(env(safe-area-inset-top, 0px) + var(--pad) + var(--title) * .86 + var(--gap) / 2); border-top: 2px solid rgba(255,255,255,.55); pointer-events: none }
 .brand { position: relative; z-index: 1; padding-left: 10px; padding-right: 64px }
 .brand h1 { margin: 0; display: grid; gap: var(--gap); justify-items: start }
 .brand .t1 { position: relative; font-family: var(--f-display); font-weight: 800; font-size: var(--title); line-height: .86; letter-spacing: .015em; text-transform: uppercase }
@@ -178,8 +179,17 @@ main { overflow-x: clip }
   @keyframes slide-from-right { from { transform: translateX(30%); opacity: 0 } to { transform: none; opacity: 1 } }
   @keyframes slide-from-left { from { transform: translateX(-30%); opacity: 0 } to { transform: none; opacity: 1 } }
 }
-.avatar { object-fit: contain; flex: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)) }
-.avatar-ph { display: inline-grid; place-items: center; flex: none; border-radius: 10px; color: #fff; font-family: var(--f-display); font-weight: 800; letter-spacing: .02em }
+/* Kachel in der Spielerfarbe, im selben Look wie der Profilkopf. Das Bild steht unten bündig darin. */
+.avatar-tile {
+  --pc: var(--c0);
+  display: inline-grid; place-items: end center; flex: none; overflow: hidden; border-radius: 10px;
+  color: #fff; font-family: var(--f-display); font-weight: 800; letter-spacing: .02em;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,.06) 0 1px, transparent 1px 7px),
+    linear-gradient(135deg, color-mix(in srgb, var(--pc) 85%, #000), color-mix(in srgb, var(--pc) 35%, #04070b));
+}
+.avatar-tile img { width: 100%; height: 90%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)) }
+.avatar-tile .ini { align-self: center }
 .plist-players { display: grid; gap: 4px }
 .prow { display: flex; gap: 12px; align-items: center; text-align: left; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 4px }
 button.prow:hover { background: var(--surface-2) }
@@ -193,25 +203,29 @@ button.prow:hover { background: var(--surface-2) }
 .hero {
   --pc: var(--c0);
   position: relative; overflow: hidden; border-radius: 12px; color: #fff; min-height: 260px;
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 44%); align-items: end;
+  /* Text und Bild liegen übereinander: lange Spitznamen dürfen über das Bild laufen */
+  display: grid; grid-template-areas: "kopf"; align-items: end;
   background:
     repeating-linear-gradient(115deg, rgba(255,255,255,.05) 0 2px, transparent 2px 16px),
     linear-gradient(125deg, color-mix(in srgb, var(--pc) 80%, #000) 0%, color-mix(in srgb, var(--pc) 35%, #04070b) 62%, #04070b 100%);
 }
-.hero-rank { position: absolute; right: 10px; top: -6px; font-family: var(--f-display); font-weight: 800; font-size: 120px; line-height: 1; opacity: .1; pointer-events: none }
-.hero-info { position: relative; z-index: 1; padding: 18px; display: grid; gap: 14px; align-self: stretch; align-content: space-between; min-width: 0 }
+/* Platz liegt über dem Bild, damit das Bild ihn nie verdeckt */
+.hero-rank { position: absolute; z-index: 2; right: 12px; top: 4px; font-family: var(--f-display); font-weight: 800; font-size: 96px; line-height: 1; opacity: .22; pointer-events: none; text-shadow: 0 2px 10px rgba(0,0,0,.3) }
+.hero-info { grid-area: kopf; position: relative; z-index: 1; padding: 18px; display: grid; gap: 14px; align-self: stretch; align-content: space-between; min-width: 0 }
 .hero-badges { display: flex; gap: 6px; flex-wrap: wrap }
 .hero-badge { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 3px 8px; font-family: var(--f-mono); font-size: 12px; font-weight: 600 }
-.hero-nick { font-size: clamp(40px, 9vw, 76px); line-height: .85; color: #fff; overflow-wrap: anywhere; text-shadow: 0 2px 12px rgba(0,0,0,.35) }
+.hero-nick { font-size: clamp(40px, 11vw, 76px); line-height: .85; color: #fff; overflow-wrap: break-word; text-shadow: 0 2px 14px rgba(0,0,0,.6) }
+.hero-nick.long { font-size: clamp(32px, 8vw, 60px) }
 .hero-real { margin: 6px 0 0; font-size: 15px; opacity: .85 }
-.hero-art { align-self: end; height: 280px; display: flex; align-items: flex-end; justify-content: center; min-width: 0 }
+/* Oben Luft lassen und etwas nach links rücken, damit Bild und Platz nebeneinander Platz haben */
+.hero-art { grid-area: kopf; justify-self: end; width: 46%; align-self: end; height: 230px; margin-right: 48px; display: flex; align-items: flex-end; justify-content: center; min-width: 0 }
 .hero-art img { max-height: 100%; max-width: 100%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 12px 22px rgba(0,0,0,.5)) }
 .hero-ghost { font-family: var(--f-display); font-weight: 800; font-size: 150px; line-height: .8; text-transform: uppercase; opacity: .18; padding-bottom: 12px }
 .fin-art { height: 120px; width: 100%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 6px 12px rgba(0,0,0,.35)) }
 @media (max-width: 560px) {
-  .hero { min-height: 220px; grid-template-columns: minmax(0, 1fr) minmax(0, 42%) }
-  .hero-art { height: 220px }
-  .hero-rank { font-size: 90px }
+  .hero { min-height: 230px }
+  .hero-art { width: 52%; height: 185px; margin-right: 24px }
+  .hero-rank { font-size: 72px }
 }
 
 .banner { background: var(--gold-soft); border: 1px solid var(--gold); border-radius: 10px; padding: 10px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap }

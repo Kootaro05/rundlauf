@@ -55,7 +55,7 @@ export function PlayerProfile({ p }: { p: string }) {
             {player.hidden && <span className="hero-badge">ausgeblendet</span>}
           </div>
           <div>
-            <h2 className="hero-nick">{name(p)}</h2>
+            <h2 className={`hero-nick ${name(p).length > 8 ? 'long' : ''}`}>{name(p)}</h2>
             {real && <p className="hero-real">{real}</p>}
           </div>
         </div>
