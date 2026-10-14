@@ -1,4 +1,4 @@
-import type { Activity, Data, Invite, NewEvent, Pause, PrivateData } from '../domain/types';
+import type { Activity, Data, Invite, NewEvent, Pause, Player, PrivateData } from '../domain/types';
 
 export interface Session {
   email: string | null;
@@ -17,6 +17,17 @@ export interface AuthApi {
   signOut(): Promise<void>;
 }
 
+/**
+ * Eine Änderung in der Datenbank. Bei DELETE enthält `old` nur den Primärschlüssel.
+ * `table: '*'` heißt: unbekannt, alles neu laden (Demo-Modus).
+ */
+export interface Change {
+  table: string;
+  type: 'INSERT' | 'UPDATE' | 'DELETE' | '*';
+  row: Record<string, unknown>;
+  old: Record<string, unknown>;
+}
+
 export interface InviteInfo {
   playerName: string | null;
   valid: boolean;
@@ -27,9 +38,13 @@ export interface InviteInfo {
 export interface Backend {
   kind: 'supabase' | 'demo';
   auth: AuthApi;
+  /** Alles laden: beim Start, nach einem Funkloch, nach längerer Zeit im Hintergrund */
   load(): Promise<Data>;
-  /** Meldet jede Änderung, auch von anderen Geräten. Gibt eine Abmeldefunktion zurück. */
-  subscribe(onChange: () => void): () => void;
+  loadPlayers(): Promise<Player[]>;
+  /** Einzelne Pausen nachladen; mit `open` zusätzlich alle laufenden. Fehlt eine angefragte, wurde sie gelöscht. */
+  loadPauses(q: { ids: string[]; open: boolean }): Promise<Pause[]>;
+  /** Meldet jede Änderung, auch von anderen Geräten, mit betroffener Tabelle und Zeile. Gibt eine Abmeldefunktion zurück. */
+  subscribe(onChange: (c: Change) => void): () => void;
 
   startPause(playerIds: string[]): Promise<void>;
   startRound(pauseId: string, playerIds: string[]): Promise<void>;

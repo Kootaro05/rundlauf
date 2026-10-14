@@ -1,6 +1,7 @@
 import { createContext, useContext, type CSSProperties } from 'react';
 import type { Data, NewEvent, Pause, PrivateData } from '../domain/types';
 import type { Backend, Session } from '../lib/backend';
+import type { Scope } from '../lib/sync';
 
 export interface AppCtx {
   data: Data;
@@ -9,7 +10,8 @@ export interface AppCtx {
   canWrite: boolean;
   busy: boolean;
   /** Führt eine Schreibaktion aus, sperrt solange die Buttons und zeigt Fehler als Hinweis. */
-  run: (fn: () => Promise<void>, ok?: string) => Promise<boolean>;
+  /** `scope`: was danach nachgeladen wird; ohne Angabe die laufende Pause und die Spieler */
+  run: (fn: () => Promise<void>, ok?: string, scope?: Scope) => Promise<boolean>;
   toast: (msg: string) => void;
   /** Trägt ein Spielereignis ein. Ohne Netz landet es in der Warteschlange und wird nachgereicht. */
   addEvent: (roundId: string, seq: number, ev: NewEvent, ok?: string) => Promise<boolean>;

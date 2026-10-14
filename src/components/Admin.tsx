@@ -162,7 +162,7 @@ function PlayersAdmin({ invites, reloadInvites }: { invites: Invite[]; reloadInv
                             {players.filter((x) => x.id !== p.id).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                           </select>
                           <button className="btn small danger" disabled={busy || !mergeInto}
-                            onClick={() => void run(() => backend.mergePlayers(p.id, mergeInto), 'Zusammengeführt').then((ok) => { if (ok) { setConfirm(null); setOpen(null); } })}>
+                            onClick={() => void run(() => backend.mergePlayers(p.id, mergeInto), 'Zusammengeführt', { full: true }).then((ok) => { if (ok) { setConfirm(null); setOpen(null); } })}>
                             Zusammenführen
                           </button>
                           <button className="btn small" onClick={() => setConfirm(null)}>Abbrechen</button>

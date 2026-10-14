@@ -53,11 +53,14 @@ function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const n = pa.rounds.length;
 
+  // Nach einer Korrektur nur diese Pause nachladen
+  const thisPause = { pauses: [pa.id] };
+
   /** Prüft die Pause so, wie sie nach der Änderung aussähe, und speichert nur, wenn alle Regeln noch aufgehen. */
   const change = (after: Pause, action: () => Promise<void>, ok: string) => {
     const err = validatePause(after);
     if (err) toast(`Geht nicht, danach wäre die Pause ungültig. ${err}`);
-    else void run(action, ok);
+    else void run(action, ok, thisPause);
   };
   const withRounds = (rounds: Round[]): Pause => ({ ...pa, rounds });
   const mapEvents = (r: Round, f: (e: GameEvent[]) => GameEvent[]) => withRounds(pa.rounds.map((x) => (x === r ? { ...x, events: f(x.events) } : x)));
@@ -72,7 +75,7 @@ function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
         'Sieger getauscht',
       ),
     setServer: (e: GameEvent, server: string) =>
-      void run(() => backend.updateFinal(e.id, { p: e.p, loser: e.loser!, server }), 'Aufschläger geändert'),
+      void run(() => backend.updateFinal(e.id, { p: e.p, loser: e.loser!, server }), 'Aufschläger geändert', thisPause),
     deleteRound: (r: Round) =>
       change(withRounds(pa.rounds.filter((x) => x !== r)), () => backend.deleteRound(r.id), 'Runde gelöscht'),
   };
@@ -93,7 +96,7 @@ function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
           {edit && (confirmDelete ? (
             <span className="row">
               <span className="sub">Ganze Pause mit allen Runden löschen?</span>
-              <button className="btn danger small" disabled={busy} onClick={() => void run(() => backend.deletePause(pa.id), 'Pause gelöscht')}>Löschen</button>
+              <button className="btn danger small" disabled={busy} onClick={() => void run(() => backend.deletePause(pa.id), 'Pause gelöscht', thisPause)}>Löschen</button>
               <button className="btn small" onClick={() => setConfirmDelete(false)}>Nein</button>
             </span>
           ) : (

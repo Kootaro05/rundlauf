@@ -15,6 +15,7 @@ import { EMPTY_PRIVATE, isNetworkError } from './lib/backend';
 import { parseHash, toHash, type Route, type Tab } from './lib/route';
 import { createBackend, useData, useSession } from './lib/hooks';
 import { applyOutbox, loadOutbox, saveOutbox, type PendingEvent } from './lib/outbox';
+import type { Scope } from './lib/sync';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'live', label: 'Live' },
@@ -102,7 +103,7 @@ function useRoute() {
 
 export default function App() {
   const backend = useMemo(createBackend, []);
-  const { data: serverData, error, reload, loadedAt } = useData(backend);
+  const { data: serverData, error, reload, refresh, loadedAt } = useData(backend);
   const [outbox, setOutboxState] = useState<PendingEvent[]>(loadOutbox);
   const setOutbox = useCallback((f: (o: PendingEvent[]) => PendingEvent[]) => {
     setOutboxState((prev) => {
@@ -155,23 +156,24 @@ export default function App() {
       .catch((e: unknown) => toast(e instanceof Error ? e.message : String(e)));
   }, [session, backend, refreshSession, toast]);
 
+  // Nach eigenen Aktionen nur nachladen, was sich geändert haben kann (Standard: laufende Pause und Spieler)
   const run = useCallback(
-    async (fn: () => Promise<void>, ok?: string) => {
+    async (fn: () => Promise<void>, ok?: string, scope?: Scope) => {
       setBusy(true);
       try {
         await fn();
-        await reload();
+        await refresh(scope);
         if (ok) toast(ok);
         return true;
       } catch (e) {
         toast(e instanceof Error ? e.message : String(e));
-        await reload();
+        await refresh(scope);
         return false;
       } finally {
         setBusy(false);
       }
     },
-    [reload, toast],
+    [refresh, toast],
   );
 
   // Wartende Offline-Einträge der Reihe nach senden. Lehnt der Server einen ab (Regeln), wird er verworfen.
@@ -189,11 +191,11 @@ export default function App() {
         }
         setOutbox((o) => o.filter((x) => x.key !== p.key));
       }
-      await reload();
+      await refresh({ open: true });
     } finally {
       flushing.current = false;
     }
-  }, [backend, reload, setOutbox, toast]);
+  }, [backend, refresh, setOutbox, toast]);
 
   useEffect(() => {
     if (!outbox.length) return;
@@ -219,19 +221,20 @@ export default function App() {
       setBusy(true);
       try {
         await backend.addEvent(roundId, seq, ev);
-        await reload();
+        // Spielereignisse gibt es nur in der laufenden Pause
+        await refresh({ open: true });
         if (ok) toast(ok);
         return true;
       } catch (e) {
         if (isNetworkError(e)) return queue();
         toast(e instanceof Error ? e.message : String(e));
-        await reload();
+        await refresh({ open: true });
         return false;
       } finally {
         setBusy(false);
       }
     },
-    [backend, reload, setOutbox, toast],
+    [backend, refresh, setOutbox, toast],
   );
 
   // Wiederholen: was auf diesem Gerät zurückgenommen wurde, bis jemand etwas Neues einträgt

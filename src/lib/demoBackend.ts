@@ -32,9 +32,13 @@ export function createDemoBackend(): Backend {
       signOut: async () => {},
     },
     load: async () => structuredClone(data),
+    loadPlayers: async () => structuredClone(data.players),
+    loadPauses: async ({ ids, open }) => structuredClone(data.pauses.filter((p) => ids.includes(p.id) || (open && !p.endedAt))),
     subscribe(cb) {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
+      // Im Demo-Modus ist alles im Speicher, da lohnt kein gezieltes Nachladen
+      const l = () => cb({ table: '*', type: '*', row: {}, old: {} });
+      listeners.add(l);
+      return () => listeners.delete(l);
     },
 
     async startPause(playerIds) {

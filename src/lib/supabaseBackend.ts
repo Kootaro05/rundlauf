@@ -35,6 +35,33 @@ interface PlayerRow {
 
 const ms = (s: string) => new Date(s).getTime();
 
+const PAUSE_SELECT =
+  'id, started_at, ended_at, pause_players(player_id), rounds(id, number, started_at, round_players(player_id), events(id, seq, type, player_id, loser_id, server_id, pot, created_at))';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const toPlayer = (r: PlayerRow) => ({ id: r.id, name: r.name, hidden: r.hidden, createdAt: ms(r.created_at) });
+
+const toPause = (r: PauseRow): Pause => ({
+  id: r.id,
+  startedAt: ms(r.started_at),
+  endedAt: r.ended_at ? ms(r.ended_at) : null,
+  participants: r.pause_players.map((x) => x.player_id),
+  rounds: r.rounds
+    .sort((a, b) => a.number - b.number)
+    .map((rr) => ({
+      id: rr.id,
+      number: rr.number,
+      startedAt: ms(rr.started_at),
+      participants: rr.round_players.map((x) => x.player_id),
+      events: rr.events
+        .sort((a, b) => a.seq - b.seq)
+        .map((e) => ({
+          id: e.id, seq: e.seq, type: e.type, p: e.player_id, loser: e.loser_id,
+          server: e.server_id, pot: e.pot, t: ms(e.created_at),
+        })),
+    })),
+});
+
 function friendly(e: PostgrestError | { code?: string; message: string }): string {
   if (e.code === '23505') {
     if (e.message.includes('players_name_ci')) return 'Diesen Namen gibt es schon.';
@@ -100,43 +127,37 @@ export function createSupabaseBackend(url: string, key: string): Backend {
     async load(): Promise<Data> {
       const [pl, pa] = await Promise.all([
         sb.from('players').select('id, name, hidden, created_at'),
-        sb
-          .from('pauses')
-          .select(
-            'id, started_at, ended_at, pause_players(player_id), rounds(id, number, started_at, round_players(player_id), events(id, seq, type, player_id, loser_id, server_id, pot, created_at))',
-          )
-          .order('started_at', { ascending: false }),
+        sb.from('pauses').select(PAUSE_SELECT).order('started_at', { ascending: false }),
       ]);
       check(pl);
       check(pa);
-      const players = (pl.data as PlayerRow[]).map((r) => ({ id: r.id, name: r.name, hidden: r.hidden, createdAt: ms(r.created_at) }));
-      const pauses: Pause[] = (pa.data as unknown as PauseRow[]).map((r) => ({
-        id: r.id,
-        startedAt: ms(r.started_at),
-        endedAt: r.ended_at ? ms(r.ended_at) : null,
-        participants: r.pause_players.map((x) => x.player_id),
-        rounds: r.rounds
-          .sort((a, b) => a.number - b.number)
-          .map((rr) => ({
-            id: rr.id,
-            number: rr.number,
-            startedAt: ms(rr.started_at),
-            participants: rr.round_players.map((x) => x.player_id),
-            events: rr.events
-              .sort((a, b) => a.seq - b.seq)
-              .map((e) => ({
-                id: e.id, seq: e.seq, type: e.type, p: e.player_id, loser: e.loser_id,
-                server: e.server_id, pot: e.pot, t: ms(e.created_at),
-              })),
-          })),
-      }));
-      return { players, pauses };
+      return { players: (pl.data as PlayerRow[]).map(toPlayer), pauses: (pa.data as unknown as PauseRow[]).map(toPause) };
+    },
+
+    async loadPlayers() {
+      return (check(await sb.from('players').select('id, name, hidden, created_at')).data as PlayerRow[]).map(toPlayer);
+    },
+
+    async loadPauses({ ids, open }) {
+      const safe = ids.filter((id) => UUID.test(id));
+      if (!safe.length && !open) return [];
+      let q = sb.from('pauses').select(PAUSE_SELECT);
+      if (safe.length && open) q = q.or(`ended_at.is.null,id.in.(${safe.join(',')})`);
+      else if (safe.length) q = q.in('id', safe);
+      else q = q.is('ended_at', null);
+      return (check(await q).data as unknown as PauseRow[]).map(toPause);
     },
 
     subscribe(onChange) {
       const ch = sb
         .channel('alles')
-        .on('postgres_changes', { event: '*', schema: 'public' }, () => onChange())
+        .on('postgres_changes', { event: '*', schema: 'public' }, (p) =>
+          onChange({
+            table: p.table,
+            type: p.eventType,
+            row: (p.new ?? {}) as Record<string, unknown>,
+            old: (p.old ?? {}) as Record<string, unknown>,
+          }))
         .subscribe();
       return () => void sb.removeChannel(ch);
     },
