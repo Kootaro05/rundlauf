@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ELO_START, computeElo, placement, ratingAt } from './elo';
+import { ELO_START, computeElo, placement, ratingAt, semesterElo } from './elo';
 import { computeComebacks, computeDuels, longestFinalStreak } from './stats';
 import type { EventType, Pause, Round } from './types';
 
@@ -34,6 +34,18 @@ describe('ELO', () => {
     const strongB = computeElo([pause(0, round(['b', 'c'], ['final', 'b', { loser: 'c', pot: 1 }])), pause(1, round(['a', 'b'], ['final', 'a', { loser: 'b', pot: 1 }]))]);
     const weakB = computeElo([pause(0, round(['b', 'c'], ['final', 'c', { loser: 'b', pot: 1 }])), pause(1, round(['a', 'b'], ['final', 'a', { loser: 'b', pot: 1 }]))]);
     expect(strongB.rating.a).toBeGreaterThan(weakB.rating.a);
+  });
+
+  it('Semester-ELO zählt nur das laufende Semester, die Gesamt-ELO alles', () => {
+    const sommer = new Date(2026, 5, 1).getTime();
+    const winter = new Date(2026, 9, 14).getTime();
+    const pausen = [pause(sommer, abc()), pause(winter, abc())];
+    const gesamt = computeElo(pausen);
+    const semester = semesterElo(pausen, winter);
+    expect(semester.history.a).toHaveLength(2);
+    expect(gesamt.history.a).toHaveLength(3);
+    expect(semester.rating.a).toBeLessThan(gesamt.rating.a);
+    expect(semesterElo(pausen, new Date(2027, 3, 1).getTime()).rating).toEqual({});
   });
 
   it('Verlauf und Wert zu einem Zeitpunkt', () => {

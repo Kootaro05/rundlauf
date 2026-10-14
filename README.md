@@ -27,7 +27,11 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   Lieblings- und Angstgegner und längster Siegesserie.
 - **ELO:** Jede Runde zählt nach Platzierung: Finalsieger, Finalverlierer, dann rückwärts in der Raus-Reihenfolge.
   Jeder wird mit jedem anderen der Runde verglichen, als hätten sie ein Duell gespielt. Wer vor einem Stärkeren landet,
-  gewinnt mehr. Alle starten bei 1000, pro Runde sind höchstens ±32 drin ([`elo.ts`](src/domain/elo.ts)).
+  gewinnt mehr. Pro Runde sind höchstens ±32 drin ([`elo.ts`](src/domain/elo.ts)).
+  Die **ELO** gilt pro Semester: Zu Semesterbeginn starten alle wieder bei 1000. Die **Gesamt-ELO** läuft seit dem
+  ersten Spiel weiter; beide stehen in der Tabelle und im Profil.
+- **Semester:** wechseln automatisch nach Datum (SoSe 1. April – 30. September, WiSe 1. Oktober – 31. März).
+  Nichts zu tun; „Dieses Semester“, Semester-Rekorde und Semester-ELO beginnen von selbst neu, alle Daten bleiben.
 - **Spieler:** Liste mit Profilbildern. Ein Klick (hier oder auf einen Namen in der Tabelle) öffnet die Profilseite
   als eigene Unterseite (`#/spieler/<id>`): Kopf im E-Sport-Look mit freigestelltem Bild, ELO, Statistik, Rivalen.
   Jeder pflegt sein eigenes Profil: Spitzname, Vor- und Nachname, Bild; alle anderen Profile pflegt der Admin.

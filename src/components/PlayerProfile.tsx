@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
-import { computeElo, ELO_START } from '../domain/elo';
+import { computeElo, ELO_START, semesterElo } from '../domain/elo';
 import { fmtDate } from '../domain/periods';
 import { computeDuels, computeStats, longestFinalStreak, pct } from '../domain/stats';
 import { loadForCrop } from '../lib/image';
@@ -10,7 +10,9 @@ import { plural, useApp } from './ui';
 /** Profilseite im E-Sport-Look. Nur für eingetragene Spieler. */
 export function PlayerProfile({ p }: { p: string }) {
   const { data, isMember, closeProfile, name, realName, avatar, color, canEditPlayer } = useApp();
-  const elo = useMemo(() => computeElo(data.pauses), [data.pauses]);
+  // ELO = laufendes Semester, Gesamt-ELO = seit dem ersten Spiel
+  const elo = useMemo(() => semesterElo(data.pauses), [data.pauses]);
+  const eloAll = useMemo(() => computeElo(data.pauses), [data.pauses]);
   const player = data.players.find((x) => x.id === p);
   const [editing, setEditing] = useState(false);
 
@@ -24,9 +26,10 @@ export function PlayerProfile({ p }: { p: string }) {
   const ranking = Object.keys(elo.rating).sort((a, b) => elo.rating[b] - elo.rating[a]);
   const rank = ranking.indexOf(p) + 1;
   const rating = Math.round(elo.rating[p] ?? ELO_START);
+  const ratingAll = Math.round(eloAll.rating[p] ?? ELO_START);
   const img = avatar(p);
   const real = realName(p);
-  const history = elo.history[p] ?? [];
+  const history = eloAll.history[p] ?? [];
 
   const duels = computeDuels(data.pauses);
   const opponents = new Set([...Object.keys(duels[p] ?? {}), ...Object.keys(duels).filter((x) => duels[x][p])]);
@@ -47,6 +50,7 @@ export function PlayerProfile({ p }: { p: string }) {
           <div className="hero-badges">
             {rank > 0 && <span className="hero-badge">Platz {rank} von {ranking.length}</span>}
             <span className="hero-badge">ELO {rating}</span>
+            <span className="hero-badge">Gesamt-ELO {ratingAll}</span>
             {player.hidden && <span className="hero-badge">ausgeblendet</span>}
           </div>
           <div>
@@ -66,7 +70,8 @@ export function PlayerProfile({ p }: { p: string }) {
       ) : (
         <>
           <div className="tiles">
-            <Tile label="ELO" big={rating} sub={`Bestwert ${Math.round(elo.peak[p] ?? ELO_START)}`} />
+            <Tile label="ELO · Semester" big={rating} sub={rank > 0 ? `Platz ${rank} von ${ranking.length} · Bestwert ${Math.round(elo.peak[p] ?? ELO_START)}` : 'In diesem Semester noch nicht gespielt'} />
+            <Tile label="Gesamt-ELO" big={ratingAll} sub={`Bestwert aller Zeiten ${Math.round(eloAll.peak[p] ?? ELO_START)}`} />
             <Tile label="Kronen gesamt" big={s.netto} sub={`Ø ${(s.netto / s.pausen).toFixed(1).replace('.', ',')} pro Pause · beste Pause ${s.beste}`} />
             <Tile label="Siege" big={s.siege} sub={`${pct(s.siege, s.runden)} von ${plural(s.runden, 'Runde', 'Runden')} · ${s.siege} von ${s.finals} Finals`} />
             <Tile label="Längste Serie" big={longestFinalStreak(data.pauses, p)} sub="Finals am Stück gewonnen" />
@@ -81,8 +86,8 @@ export function PlayerProfile({ p }: { p: string }) {
             {angst?.l > 0 && <p className="sub">Angstgegner: <b>{name(angst.o)}</b>, im Finale {angst.w}:{angst.l}</p>}
             {history.length > 1 && (
               <LineChart
-                title="ELO-Verlauf"
-                ariaLabel={`ELO-Verlauf von ${name(p)}`}
+                title="Gesamt-ELO-Verlauf"
+                ariaLabel={`Gesamt-ELO-Verlauf von ${name(p)}`}
                 baseline={ELO_START}
                 xLabels={history.map((h) => fmtDate(h.t).slice(0, 6))}
                 series={[{ id: p, values: history.map((h) => h.r) }]}

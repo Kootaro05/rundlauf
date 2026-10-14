@@ -1,4 +1,5 @@
 import { roundInfo } from './game';
+import { periodKey } from './periods';
 import type { Pause, Round } from './types';
 
 export const ELO_START = 1000;
@@ -70,6 +71,15 @@ export function computeElo(pauses: Pause[]): EloResult {
     });
   }
   return { rating, peak, history };
+}
+
+/**
+ * ELO des laufenden Semesters: Zu Semesterbeginn starten alle wieder bei 1000,
+ * es zählen nur Pausen aus diesem Semester. Die Gesamt-ELO (computeElo über alle Pausen) läuft weiter.
+ */
+export function semesterElo(pauses: Pause[], now = Date.now()): EloResult {
+  const key = periodKey(now, 'semester');
+  return computeElo(pauses.filter((pa) => periodKey(pa.startedAt, 'semester') === key));
 }
 
 /** Wertung zu einem Zeitpunkt (letzter Stand davor). Wer bis dahin nicht gespielt hat, steht auf dem Startwert. */

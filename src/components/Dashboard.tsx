@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { computeElo, ratingAt } from '../domain/elo';
+import { computeElo, ELO_START, ratingAt, semesterElo } from '../domain/elo';
 import { balances } from '../domain/game';
 import { PERIODS, fmtDate, type Granularity } from '../domain/periods';
 import { computeComebacks, computeDuels, computeStats, pausesIn, pct, recordFor, type Comeback, type PlayerStats } from '../domain/stats';
@@ -13,7 +13,9 @@ export function Dashboard() {
   const { data, name, isMember, openProfile } = useApp();
   const [period, setPeriod] = useState<Granularity>('all');
   const [sort, setSort] = useState('netto');
-  const elo = useMemo(() => computeElo(data.pauses), [data.pauses]);
+  // ELO = laufendes Semester (startet jedes Semester bei 1000), Gesamt-ELO = seit dem ersten Spiel
+  const elo = useMemo(() => semesterElo(data.pauses), [data.pauses]);
+  const eloAll = useMemo(() => computeElo(data.pauses), [data.pauses]);
 
   if (!data.pauses.length)
     return (
@@ -28,7 +30,9 @@ export function Dashboard() {
   const label = PERIODS.find((x) => x.g === period)!.label;
   const maxAbs = Math.max(1, ...rows.map((x) => Math.abs(x.netto)));
   const periodStart = Math.min(...list.map((pa) => pa.startedAt));
-  const eloNow = (p: string) => elo.rating[p] ?? 1000;
+  const eloNow = (p: string) => elo.rating[p] ?? ELO_START;
+  const eloAllNow = (p: string) => eloAll.rating[p] ?? ELO_START;
+  // Veränderung der Semester-ELO im gewählten Zeitraum (Tag, Woche, Semester)
   const eloDelta = (p: string) => eloNow(p) - ratingAt(elo.history[p], periodStart);
 
   const cols: Col[] = [
@@ -50,6 +54,7 @@ export function Dashboard() {
         </>
       ),
     },
+    { k: 'eloAll', label: 'Gesamt-ELO', v: (x) => eloAllNow(x.p), fmt: (x) => Math.round(eloAllNow(x.p)) },
     { k: 'avg', label: 'Ø / Pause', v: (x) => (x.pausen ? x.netto / x.pausen : 0), fmt: (x) => (x.pausen ? (x.netto / x.pausen).toFixed(1).replace('.', ',') : '–') },
     { k: 'pausen', label: 'Pausen', v: (x) => x.pausen },
     { k: 'runden', label: 'Runden', v: (x) => x.runden },
@@ -70,7 +75,8 @@ export function Dashboard() {
   rows.sort((a, b) => sc.v(b) - sc.v(a) || b.netto - a.netto);
 
   const eloLeader = Object.keys(elo.rating).sort((a, b) => elo.rating[b] - elo.rating[a])[0];
-  const peakHolder = Object.keys(elo.peak).sort((a, b) => elo.peak[b] - elo.peak[a])[0];
+  const allLeader = Object.keys(eloAll.rating).sort((a, b) => eloAll.rating[b] - eloAll.rating[a])[0];
+  const peakHolder = Object.keys(eloAll.peak).sort((a, b) => eloAll.peak[b] - eloAll.peak[a])[0];
 
   return (
     <>
@@ -93,12 +99,16 @@ export function Dashboard() {
               </div>
             );
           })}
-          {peakHolder && (
+          {(eloLeader || allLeader) && (
             <div className="tile">
-              <h3>Höchste ELO</h3>
-              <div className="big num">{Math.round(elo.peak[peakHolder])}<small>{name(peakHolder)}</small></div>
-              <p className="sub">Bestwert aller Zeiten</p>
-              <p className="sub">Aktuell vorne: {name(eloLeader)} ({Math.round(elo.rating[eloLeader])})</p>
+              <h3>ELO · Semester</h3>
+              {eloLeader ? (
+                <div className="big num">{Math.round(elo.rating[eloLeader])}<small>{name(eloLeader)}</small></div>
+              ) : (
+                <div className="big num">{ELO_START}<small>noch niemand</small></div>
+              )}
+              <p className="sub">Vorne in der Gesamt-ELO: {name(allLeader)} ({Math.round(eloAll.rating[allLeader])})</p>
+              <p className="sub">Bestwert aller Zeiten: {Math.round(eloAll.peak[peakHolder])} ({name(peakHolder)})</p>
             </div>
           )}
         </div>
@@ -115,7 +125,8 @@ export function Dashboard() {
         </div>
         <p className="sub">
           {plural(list.length, 'Pause', 'Pausen')} · Quoten zählen nur Runden, bei denen der Spieler dabei war. Spaltenkopf antippen zum Sortieren{isMember ? ', Namen antippen fürs Profil' : ''}.
-          ELO bewertet jede Runde nach Platzierung, alle starten bei 1000{period !== 'all' ? '. Daneben die Veränderung im Zeitraum' : ''}.
+          ELO bewertet jede Runde nach Platzierung und startet jedes Semester für alle bei 1000{period !== 'all' ? ', daneben die Veränderung im Zeitraum' : ''}.
+          Die Gesamt-ELO läuft seit dem ersten Spiel weiter.
         </p>
         {rows.length ? (
           <div className="scroll">
