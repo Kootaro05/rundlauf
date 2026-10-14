@@ -228,6 +228,11 @@ select { font: inherit; color: var(--ink); background: var(--surface-2); border:
 /* Platz liegt über dem Bild, damit das Bild ihn nie verdeckt */
 .hero-rank { position: absolute; z-index: 2; right: 12px; top: 4px; font-family: var(--f-display); font-weight: 800; font-size: 96px; line-height: 1; opacity: .22; pointer-events: none; text-shadow: 0 2px 10px rgba(0,0,0,.3) }
 .hero-info { grid-area: kopf; position: relative; z-index: 1; padding: 18px; display: grid; gap: 14px; align-self: stretch; align-content: space-between; min-width: 0 }
+.hero-top { display: grid; gap: 10px; justify-items: start }
+/* Gesamt-ELO oben links: groß und halbtransparent wie die Platzzahl rechts oben */
+.hero-elo { display: flex; align-items: flex-end; gap: 10px; line-height: .8; pointer-events: none }
+.hero-elo .v { font-family: var(--f-display); font-weight: 800; font-size: 96px; opacity: .22; text-shadow: 0 2px 10px rgba(0,0,0,.3) }
+.hero-elo .l { font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; opacity: .6; padding-bottom: 6px }
 .hero-badges { display: flex; gap: 6px; flex-wrap: wrap }
 .hero-badge { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 3px 8px; font-family: var(--f-mono); font-size: 12px; font-weight: 600 }
 .hero-nick { font-size: clamp(40px, 11vw, 76px); line-height: .85; color: #fff; overflow-wrap: break-word; text-shadow: 0 2px 14px rgba(0,0,0,.6) }
@@ -265,6 +270,8 @@ select { font: inherit; color: var(--ink); background: var(--surface-2); border:
   .hero { min-height: 230px }
   .hero-art { height: 214px; margin-right: 20px }
   .hero-rank { font-size: 72px }
+  .hero-elo .v { font-size: 72px }
+  .hero-elo .l { padding-bottom: 4px }
 }
 
 .banner { background: var(--gold-soft); border: 1px solid var(--gold); border-radius: 10px; padding: 10px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap }

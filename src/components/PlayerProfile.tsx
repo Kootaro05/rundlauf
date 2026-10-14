@@ -47,11 +47,17 @@ export function PlayerProfile({ p }: { p: string }) {
       <section className="hero" style={{ '--pc': color(p) } as CSSProperties}>
         {rank > 0 && <span className="hero-rank" aria-hidden="true">#{rank}</span>}
         <div className="hero-info">
-          <div className="hero-badges">
-            {rank > 0 && <span className="hero-badge">Platz {rank} von {ranking.length}</span>}
-            <span className="hero-badge">ELO {rating}</span>
-            <span className="hero-badge">Gesamt-ELO {ratingAll}</span>
-            {player.hidden && <span className="hero-badge">ausgeblendet</span>}
+          <div className="hero-top">
+            {/* Gesamt-ELO groß, im selben Stil wie die Platzzahl rechts */}
+            <div className="hero-elo">
+              <span className="v num">{ratingAll}</span>
+              <span className="l">Gesamt-ELO</span>
+            </div>
+            <div className="hero-badges">
+              {rank > 0 && <span className="hero-badge">Platz {rank} von {ranking.length}</span>}
+              <span className="hero-badge">ELO {rating}</span>
+              {player.hidden && <span className="hero-badge">ausgeblendet</span>}
+            </div>
           </div>
           <div>
             <h2 className={`hero-nick ${name(p).length > 8 ? 'long' : ''}`}>{name(p)}</h2>
