@@ -234,7 +234,9 @@ function RunningRound({ pa, r }: { pa: Pause; r: Round }) {
       <p className="sub">{canWrite ? 'Tippe auf den Spieler, der den Fehler gemacht hat.' : 'Live-Stand der Runde.'}</p>
       <div className="grid">
         {i.active.map((p) => {
-          const c = sheet === p ? crownCheck(pa, r, p) : null;
+          const check = crownCheck(pa, r, p);
+          const canCrown = check.ok;
+          const c = sheet === p ? check : null;
           return (
             // Zelle und Auswahl-Panel liegen als Geschwister im Grid, damit das Panel die volle Breite nimmt
             <Fragment key={p}>
@@ -244,6 +246,8 @@ function RunningRound({ pa, r }: { pa: Pause; r: Round }) {
                 disabled={!canWrite || busy}
                 onClick={() => {
                   if (!i.schwimmer) void add({ type: 'schwimmer', p }, `${name(p)} bekommt den Schwimmer`);
+                  // Nur fragen, wenn der Spieler wirklich eine Krone setzen könnte; sonst fliegt er direkt raus
+                  else if (!canCrown) void add({ type: 'out', p }, `${name(p)} fliegt raus`);
                   else setSheet(sheet === p ? null : p);
                 }}
               >
@@ -254,7 +258,7 @@ function RunningRound({ pa, r }: { pa: Pause; r: Round }) {
                   {i.crowns[p] && <span className="tag gold"><CrownIcon /> ×{i.crowns[p]} gesetzt</span>}
                   {p === king && <span className="tag gold">König</span>}
                 </span>
-                {canWrite && <span className="hint">{i.schwimmer ? 'Fehler eintragen' : 'Fehler → bekommt den Schwimmer'}</span>}
+                {canWrite && <span className="hint">{!i.schwimmer ? 'Fehler → bekommt den Schwimmer' : canCrown ? 'Fehler → Krone setzen oder raus' : 'Fehler → fliegt raus'}</span>}
               </button>
               {c && (
                 <div className="sheet">
