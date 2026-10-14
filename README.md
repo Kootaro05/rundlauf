@@ -60,6 +60,14 @@ npm run dev
 ```
 
 Ohne `.env` läuft die App im **Demo-Modus** mit erfundenen Beispieldaten im Speicher.
+Zum gefahrlosen Ausprobieren trotz `.env`:
+
+```bash
+npm run demo
+```
+
+Das startet die App unter http://localhost:5174 garantiert ohne Supabase (siehe `.env.demo`). Im Demo-Modus bist du
+Admin und Spieler „Countess“; alles geht beim Neuladen verloren.
 
 ```bash
 npm test
