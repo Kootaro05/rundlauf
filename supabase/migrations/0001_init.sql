@@ -209,7 +209,7 @@ grant select, insert, update, delete on public.player_accounts to authenticated;
 
 -- Funktionen nur für die Rollen, die sie brauchen
 revoke execute on function public.is_member(), public.link_me(), public.start_pause(uuid[]),
-  public.start_round(uuid, uuid[]), public.end_pause(uuid), public.add_player(text, text) from public;
+  public.start_round(uuid, uuid[]), public.end_pause(uuid), public.add_player(text, text) from public, anon;
 grant execute on function public.is_member() to anon, authenticated;
 grant execute on function public.link_me(), public.start_pause(uuid[]), public.start_round(uuid, uuid[]),
   public.end_pause(uuid), public.add_player(text, text) to authenticated;
