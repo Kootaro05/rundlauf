@@ -85,7 +85,7 @@ export default function App() {
       <header className="top">
         <div className="wrap">
           <div className="brand">
-            <h1>Rundlauf-Kronen<span className="ball" aria-hidden="true" /></h1>
+            <h1>Rundlauf-Analytics<span className="ball" aria-hidden="true" /></h1>
             <p>Schwimmer, Kronen, Pot und Finale. Jede Pause startet bei null.</p>
           </div>
           <div className="topright">
@@ -123,7 +123,7 @@ export default function App() {
         )}
         {error && <div className="banner err"><span>Daten konnten nicht geladen werden: {error}</span><button className="btn small" onClick={() => void reload()}>Nochmal</button></div>}
         {!ctx ? (
-          !error && <div className="card empty"><b>Lade Kronenbuch …</b></div>
+          !error && <div className="card empty"><b>Lade Daten …</b></div>
         ) : (
           <Ctx.Provider value={ctx}>
             {tab === 'live' && <Live />}

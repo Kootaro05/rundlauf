@@ -1,4 +1,4 @@
-# Rundlauf-Kronen
+# Rundlauf-Analytics
 
 Live-Erfassung und Dashboard für Rundlauf-Tischtennis mit Schwimmer, Kronen, Pot und Finale.
 Vite + React + TypeScript, Daten und Login über Supabase.

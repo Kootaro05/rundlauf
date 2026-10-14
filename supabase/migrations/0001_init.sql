@@ -1,4 +1,4 @@
--- Rundlauf-Kronen: Grundschema
+-- Rundlauf-Analytics: Grundschema
 -- Im Supabase-Dashboard unter "SQL Editor" einmal komplett ausführen.
 
 create extension if not exists pgcrypto;
