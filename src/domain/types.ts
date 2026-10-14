@@ -35,6 +35,26 @@ export interface Player {
   createdAt: number;
 }
 
+/** Nur für eingetragene Spieler sichtbar */
+export interface PlayerPrivate {
+  firstName: string | null;
+  lastName: string | null;
+  avatarPath: string | null;
+  /** Kurzlebige Adresse zum Anzeigen des Bildes */
+  avatarUrl: string | null;
+}
+
+export interface Account {
+  email: string;
+  /** Hat sich schon einmal angemeldet. Dann darf nur der Spieler selbst sein Profil ändern. */
+  linked: boolean;
+}
+
+export interface PrivateData {
+  info: Record<string, PlayerPrivate>;
+  accounts: Record<string, Account>;
+}
+
 export interface Data {
   players: Player[];
   pauses: Pause[];

@@ -7,18 +7,18 @@ import { Players } from './components/Players';
 import { CrownIcon, Ctx, type AppCtx } from './components/ui';
 import { currentRound, openPause, roundInfo } from './domain/game';
 import { fmtTime } from './domain/periods';
-import type { NewEvent, Pause } from './domain/types';
-import { isNetworkError } from './lib/backend';
+import type { NewEvent, Pause, PrivateData } from './domain/types';
+import { EMPTY_PRIVATE, isNetworkError } from './lib/backend';
+import { parseHash, toHash, type Route, type Tab } from './lib/route';
 import { createBackend, useData, useSession } from './lib/hooks';
 import { applyOutbox, loadOutbox, saveOutbox, type PendingEvent } from './lib/outbox';
 
-const TABS = [
+const TABS: { id: Tab; label: string }[] = [
   { id: 'live', label: 'Live' },
   { id: 'dash', label: 'Dashboard' },
   { id: 'hist', label: 'Verlauf' },
   { id: 'players', label: 'Spieler' },
-] as const;
-type Tab = (typeof TABS)[number]['id'];
+];
 
 /** Chrome/Edge/Android bieten die Installation über dieses Ereignis an (Safari kennt es nicht). */
 interface BeforeInstallPromptEvent extends Event {
@@ -43,12 +43,52 @@ function useInstallPrompt() {
   return evt && (() => void evt.prompt().finally(() => setEvt(null)));
 }
 
-function initialTab(): Tab {
+function initialRoute(): Route {
+  const fromHash = parseHash(window.location.hash);
+  if (fromHash) return fromHash;
   try {
     const t = localStorage.getItem('rk.tab');
-    if (TABS.some((x) => x.id === t)) return t as Tab;
+    if (TABS.some((x) => x.id === t)) return { tab: t as Tab, player: null };
   } catch { /* Speicher gesperrt */ }
-  return 'live';
+  return { tab: 'live', player: null };
+}
+
+/** Rubrik und Profil stehen in der Adresse (#/spieler/<id>), damit Zurück am Handy funktioniert. */
+function useRoute() {
+  const [route, setRoute] = useState<Route>(initialRoute);
+  // Ob das Profil per Klick in der App geöffnet wurde; dann führt "Zurück" einen Schritt im Verlauf zurück
+  const pushedProfile = useRef(false);
+
+  useEffect(() => {
+    const onHash = () => {
+      const r = parseHash(window.location.hash) ?? { tab: 'live', player: null };
+      if (!r.player) pushedProfile.current = false;
+      setRoute(r);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  const go = useCallback((r: Route, replace = false) => {
+    if (replace) window.history.replaceState(null, '', toHash(r));
+    else window.history.pushState(null, '', toHash(r));
+    setRoute(r);
+    try { localStorage.setItem('rk.tab', r.tab); } catch { /* egal */ }
+  }, []);
+
+  const openProfile = useCallback((id: string) => {
+    pushedProfile.current = true;
+    go({ tab: 'players', player: id });
+  }, [go]);
+
+  const closeProfile = useCallback(() => {
+    if (pushedProfile.current) {
+      pushedProfile.current = false;
+      window.history.back();
+    } else go({ tab: 'players', player: null }, true);
+  }, [go]);
+
+  return { route, go, openProfile, closeProfile };
 }
 
 export default function App() {
@@ -65,17 +105,26 @@ export default function App() {
   // Was die App zeigt: Serverstand plus Einträge, die noch auf Netz warten
   const data = useMemo(() => serverData && applyOutbox(serverData, outbox), [serverData, outbox]);
   const { session, ready } = useSession(backend);
-  const [tab, setTabState] = useState<Tab>(initialTab);
+  const { route, go, openProfile, closeProfile } = useRoute();
+  const tab = route.tab;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [login, setLogin] = useState(false);
   const toastTimer = useRef<number>();
   const install = useInstallPrompt();
+  const isMember = !!session?.playerId;
 
-  const setTab = (t: Tab) => {
-    setTabState(t);
-    try { localStorage.setItem('rk.tab', t); } catch { /* egal */ }
-  };
+  // Echte Namen, Bilder und Logins: nur für eingetragene Spieler. Bild-Links laufen nach einer Stunde ab.
+  const [priv, setPriv] = useState<PrivateData>(EMPTY_PRIVATE);
+  const playerCount = serverData?.players.length ?? 0;
+  const refreshPrivate = useCallback(async () => {
+    setPriv(isMember ? await backend.loadPrivate() : EMPTY_PRIVATE);
+  }, [backend, isMember]);
+  useEffect(() => {
+    void refreshPrivate();
+    const timer = window.setInterval(() => void refreshPrivate(), 30 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [refreshPrivate, playerCount]);
 
   const toast = useCallback((m: string) => {
     setMsg(m);
@@ -183,11 +232,20 @@ export default function App() {
     const order = [...data.players].sort((a, b) => a.createdAt - b.createdAt).map((p) => p.id);
     return {
       data, backend, session, busy, run, toast, addEvent, undo,
-      canWrite: !!session?.playerId,
+      canWrite: isMember,
+      isMember,
+      priv,
+      refreshPrivate,
+      openProfile,
+      closeProfile,
+      // Eigenes Profil, oder ein Spieler, der sich noch nie angemeldet hat
+      canEditPlayer: (id) => isMember && (id === session?.playerId || !priv.accounts[id]?.linked),
       name: (id) => byId.get(id)?.name ?? 'Unbekannt',
+      realName: (id) => [priv.info[id]?.firstName, priv.info[id]?.lastName].filter(Boolean).join(' ') || null,
+      avatar: (id) => priv.info[id]?.avatarUrl ?? null,
       color: (id) => `var(--c${Math.max(0, order.indexOf(id)) % 8})`,
     };
-  }, [data, backend, session, busy, run, toast, addEvent, undo]);
+  }, [data, backend, session, busy, run, toast, addEvent, undo, isMember, priv, refreshPrivate, openProfile, closeProfile]);
 
   const pa = data ? openPause(data.pauses) : null;
   const r = currentRound(pa);
@@ -226,7 +284,7 @@ export default function App() {
       <nav className="tabs" aria-label="Bereiche">
         <div className="wrap" role="tablist">
           {TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>
+            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => go({ tab: t.id, player: null })}>{t.label}</button>
           ))}
         </div>
       </nav>
@@ -262,7 +320,7 @@ export default function App() {
             {tab === 'live' && <Live />}
             {tab === 'dash' && <Dashboard />}
             {tab === 'hist' && <History />}
-            {tab === 'players' && <Players />}
+            {tab === 'players' && <Players profile={route.player} />}
           </Ctx.Provider>
         )}
       </main>

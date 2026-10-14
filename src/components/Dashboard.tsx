@@ -5,16 +5,14 @@ import { PERIODS, fmtDate, type Granularity } from '../domain/periods';
 import { computeComebacks, computeDuels, computeStats, pausesIn, pct, recordFor, type Comeback, type PlayerStats } from '../domain/stats';
 import type { Pause } from '../domain/types';
 import { LineChart } from './LineChart';
-import { Profile } from './Profile';
 import { Dot, plural, useApp } from './ui';
 
 type Col = { k: string; label: string; v: (x: PlayerStats) => number; fmt?: (x: PlayerStats) => React.ReactNode };
 
 export function Dashboard() {
-  const { data, name } = useApp();
+  const { data, name, isMember, openProfile } = useApp();
   const [period, setPeriod] = useState<Granularity>('all');
   const [sort, setSort] = useState('netto');
-  const [profile, setProfile] = useState<string | null>(null);
   const elo = useMemo(() => computeElo(data.pauses), [data.pauses]);
 
   if (!data.pauses.length)
@@ -76,8 +74,6 @@ export function Dashboard() {
 
   return (
     <>
-      {profile && <Profile p={profile} elo={elo} onClose={() => setProfile(null)} />}
-
       <section className="stack">
         <h2>Rekorde</h2>
         <p className="sub">
@@ -118,7 +114,7 @@ export function Dashboard() {
           </div>
         </div>
         <p className="sub">
-          {plural(list.length, 'Pause', 'Pausen')} · Quoten zählen nur Runden, bei denen der Spieler dabei war. Spaltenkopf antippen zum Sortieren, Namen antippen fürs Profil.
+          {plural(list.length, 'Pause', 'Pausen')} · Quoten zählen nur Runden, bei denen der Spieler dabei war. Spaltenkopf antippen zum Sortieren{isMember ? ', Namen antippen fürs Profil' : ''}.
           ELO bewertet jede Runde nach Platzierung, alle starten bei 1000{period !== 'all' ? '. Daneben die Veränderung im Zeitraum' : ''}.
         </p>
         {rows.length ? (
@@ -138,9 +134,13 @@ export function Dashboard() {
                 {rows.map((x) => (
                   <tr key={x.p}>
                     <td>
-                      <button className="linkbtn row nowrap" onClick={() => { setProfile(x.p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-                        <Dot p={x.p} />{name(x.p)}
-                      </button>
+                      {isMember ? (
+                        <button className="linkbtn row nowrap" onClick={() => { openProfile(x.p); window.scrollTo({ top: 0 }); }}>
+                          <Dot p={x.p} />{name(x.p)}
+                        </button>
+                      ) : (
+                        <span className="row nowrap"><Dot p={x.p} />{name(x.p)}</span>
+                      )}
                     </td>
                     {cols.map((c) => <td key={c.k}>{c.fmt ? c.fmt(x) : c.v(x)}</td>)}
                   </tr>

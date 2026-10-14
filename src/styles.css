@@ -169,6 +169,51 @@ td:first-child { font-family: var(--f-body); font-weight: 600 }
 .chart .grid line { stroke: var(--line) }
 .chart .zero { stroke: var(--muted); stroke-dasharray: 3 3 }
 
+/* Spieler: Liste, Profilbilder, Profilseite */
+main { overflow-x: clip }
+.slide { display: grid; gap: 20px }
+@media (prefers-reduced-motion: no-preference) {
+  .slide.from-right { animation: slide-from-right .3s cubic-bezier(.2, .8, .2, 1) both }
+  .slide.from-left { animation: slide-from-left .3s cubic-bezier(.2, .8, .2, 1) both }
+  @keyframes slide-from-right { from { transform: translateX(30%); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes slide-from-left { from { transform: translateX(-30%); opacity: 0 } to { transform: none; opacity: 1 } }
+}
+.avatar { object-fit: contain; flex: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)) }
+.avatar-ph { display: inline-grid; place-items: center; flex: none; border-radius: 10px; color: #fff; font-family: var(--f-display); font-weight: 800; letter-spacing: .02em }
+.plist-players { display: grid; gap: 4px }
+.prow { display: flex; gap: 12px; align-items: center; text-align: left; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 4px }
+button.prow:hover { background: var(--surface-2) }
+.pinfo { display: grid; gap: 2px; min-width: 0; flex: 1 }
+.chev { font-size: 24px; color: var(--muted); line-height: 1 }
+.backbtn { padding-left: 4px }
+.formgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end }
+.formgrid label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 600 }
+
+/* Profil-Kopf im E-Sport-Look: Spielerfarbe, Streifen, freigestelltes Bild ohne Rahmen */
+.hero {
+  --pc: var(--c0);
+  position: relative; overflow: hidden; border-radius: 12px; color: #fff; min-height: 260px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 44%); align-items: end;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,.05) 0 2px, transparent 2px 16px),
+    linear-gradient(125deg, color-mix(in srgb, var(--pc) 80%, #000) 0%, color-mix(in srgb, var(--pc) 35%, #04070b) 62%, #04070b 100%);
+}
+.hero-rank { position: absolute; right: 10px; top: -6px; font-family: var(--f-display); font-weight: 800; font-size: 120px; line-height: 1; opacity: .1; pointer-events: none }
+.hero-info { position: relative; z-index: 1; padding: 18px; display: grid; gap: 14px; align-self: stretch; align-content: space-between; min-width: 0 }
+.hero-badges { display: flex; gap: 6px; flex-wrap: wrap }
+.hero-badge { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.25); border-radius: 6px; padding: 3px 8px; font-family: var(--f-mono); font-size: 12px; font-weight: 600 }
+.hero-nick { font-size: clamp(40px, 9vw, 76px); line-height: .85; color: #fff; overflow-wrap: anywhere; text-shadow: 0 2px 12px rgba(0,0,0,.35) }
+.hero-real { margin: 6px 0 0; font-size: 15px; opacity: .85 }
+.hero-art { align-self: end; height: 280px; display: flex; align-items: flex-end; justify-content: center; min-width: 0 }
+.hero-art img { max-height: 100%; max-width: 100%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 12px 22px rgba(0,0,0,.5)) }
+.hero-ghost { font-family: var(--f-display); font-weight: 800; font-size: 150px; line-height: .8; text-transform: uppercase; opacity: .18; padding-bottom: 12px }
+.fin-art { height: 120px; width: 100%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 6px 12px rgba(0,0,0,.35)) }
+@media (max-width: 560px) {
+  .hero { min-height: 220px; grid-template-columns: minmax(0, 1fr) minmax(0, 42%) }
+  .hero-art { height: 220px }
+  .hero-rank { font-size: 90px }
+}
+
 .banner { background: var(--gold-soft); border: 1px solid var(--gold); border-radius: 10px; padding: 10px 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap }
 .banner.err { background: var(--danger-soft); border-color: var(--danger) }
 .empty { text-align: center; padding: 28px 16px; color: var(--muted); display: grid; gap: 10px; justify-items: center }

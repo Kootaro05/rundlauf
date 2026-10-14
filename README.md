@@ -26,6 +26,10 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
 - **ELO:** Jede Runde zählt nach Platzierung: Finalsieger, Finalverlierer, dann rückwärts in der Raus-Reihenfolge.
   Jeder wird mit jedem anderen der Runde verglichen, als hätten sie ein Duell gespielt. Wer vor einem Stärkeren landet,
   gewinnt mehr. Alle starten bei 1000, pro Runde sind höchstens ±32 drin ([`elo.ts`](src/domain/elo.ts)).
+- **Spieler:** Liste mit Profilbildern. Ein Klick (hier oder auf einen Namen in der Tabelle) öffnet die Profilseite
+  als eigene Unterseite (`#/spieler/<id>`): Kopf im E-Sport-Look mit freigestelltem Bild, ELO, Statistik, Rivalen.
+  Jeder pflegt sein eigenes Profil: Spitzname, Vor- und Nachname, Bild. Spieler, die sich noch nie angemeldet haben,
+  darf jedes Mitglied bearbeiten. Bilder werden auf dem Gerät zugeschnitten (durchsichtiger Rand weg) und auf 512 px verkleinert.
 - **Verlauf:** Jede Pause mit Kronen-Diagramm und allen Einträgen. Unter *Korrigieren* lassen sich Einträge und Runden
   löschen, Finalsieger tauschen und Aufschläger ändern. Vorher wird die ganze Pause nachgespielt; würde eine Änderung
   spätere Einträge ungültig machen (z. B. eine Krone, die es ohne den gelöschten Sieg nicht gäbe), wird sie abgelehnt.
@@ -66,8 +70,9 @@ So ist das laufende System aufgesetzt. Die Schritte braucht man nur für ein neu
    - **Enable Data API**: an
    - **Automatically expose new tables**: aus (die Rechte vergibt das Schema selbst)
    - **Enable automatic RLS**: an
-2. Im **SQL Editor** nacheinander [`0001_init.sql`](supabase/migrations/0001_init.sql) und
-   [`0002_regeln.sql`](supabase/migrations/0002_regeln.sql) ausführen.
+2. Im **SQL Editor** nacheinander [`0001_init.sql`](supabase/migrations/0001_init.sql),
+   [`0002_regeln.sql`](supabase/migrations/0002_regeln.sql) und [`0003_profile.sql`](supabase/migrations/0003_profile.sql) ausführen.
+   0003 legt auch den privaten Bildspeicher `avatars` an.
 3. Dich selbst als ersten Spieler anlegen, siehe [`supabase/seed.example.sql`](supabase/seed.example.sql).
    Alle weiteren Spieler legt man danach in der App im Tab *Spieler* an.
 4. **Project URL** und **anon Key** (Project Settings → API Keys → *Legacy anon, service_role API keys*)
@@ -145,10 +150,17 @@ Der Code steht mit Absicht im Betreff, so sieht man ihn schon in der Benachricht
 
 ### Wer darf was?
 
-- **Lesen** (Dashboard, Verlauf, Live-Stand): jeder mit dem Link, ohne Login.
-- **Eintragen**: nur wer angemeldet ist **und** dessen E-Mail bei einem Spieler hinterlegt ist.
-  Neue Mitspieler trägst du im Tab *Spieler* mit E-Mail ein. Beim ersten Login werden sie automatisch verknüpft.
-- E-Mails sind nur für eingeloggte Mitglieder sichtbar.
+| | ohne Login | eingetragener Spieler |
+|---|---|---|
+| Spitznamen, Live-Stand, Dashboard, Verlauf | ✓ | ✓ |
+| Echte Namen, Profilseiten, Profilbilder, E-Mails | – | ✓ |
+| Eintragen, Spieler anlegen, ausblenden, korrigieren | – | ✓ |
+| Profil (Spitzname, Name, Bild) ändern | – | das eigene, und Spieler, die sich noch nie angemeldet haben |
+| Login-E-Mail ändern | – | nur bei Spielern, die sich noch nie angemeldet haben |
+
+„Eingetragener Spieler“ heißt: angemeldet **und** die E-Mail gehört zu einem Spieler. Neue Mitspieler trägst du im Tab
+*Spieler* mit E-Mail ein; beim ersten Login werden sie automatisch verknüpft. Wer sich mit einer fremden E-Mail anmeldet,
+sieht nur, was auch ohne Login sichtbar ist. Durchgesetzt wird das in der Datenbank (RLS), nicht nur in der App.
 
 ## Als App installieren
 

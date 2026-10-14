@@ -1,21 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { computeStats } from '../domain/stats';
-import type { Player } from '../domain/types';
-import { Dot, useApp } from './ui';
+import { PlayerProfile } from './PlayerProfile';
+import { Avatar, useApp } from './ui';
 
-export function Players() {
-  const { data, backend, run, busy, canWrite } = useApp();
-  const [emails, setEmails] = useState<Record<string, string>>({});
+/** Rubrik Spieler: Liste, oder mit `profile` die Profilseite des Spielers. Beim Wechsel gleitet die Seite herein. */
+export function Players({ profile }: { profile: string | null }) {
+  // Richtung merken: ins Profil von rechts, zurück zur Liste von links
+  const last = useRef(profile);
+  const dir = profile ? 'from-right' : last.current ? 'from-left' : '';
+  useEffect(() => {
+    last.current = profile;
+  }, [profile]);
+
+  return (
+    <div key={profile ?? 'liste'} className={`slide ${dir}`}>
+      {profile ? <PlayerProfile p={profile} /> : <PlayerList />}
+    </div>
+  );
+}
+
+function PlayerList() {
+  const { data, backend, run, busy, canWrite, isMember, priv, openProfile, realName, name } = useApp();
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const showEmails = canWrite && backend.kind === 'supabase';
-
-  useEffect(() => {
-    if (showEmails) void backend.playerEmails().then(setEmails);
-  }, [backend, showEmails, data]);
-
   const stats = computeStats(data.pauses);
-  const players = [...data.players].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  const players = [...data.players].sort((a, b) => a.hidden === b.hidden ? a.name.localeCompare(b.name, 'de') : a.hidden ? 1 : -1);
 
   const add = async () => {
     const n = newName.trim().slice(0, 24);
@@ -31,73 +40,44 @@ export function Players() {
       <h2>Spieler</h2>
       {canWrite && (
         <form className="row" onSubmit={(e) => { e.preventDefault(); void add(); }}>
-          <input id="np-main" type="text" maxLength={24} placeholder="Name" aria-label="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-          {showEmails && (
+          <input id="np-main" type="text" maxLength={24} placeholder="Spitzname" aria-label="Spitzname" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          {backend.kind === 'supabase' && (
             <input id="np-mail" type="email" placeholder="E-Mail (optional)" aria-label="E-Mail für den Login" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
           )}
           <button className="btn primary" disabled={busy || !newName.trim()}>Spieler hinzufügen</button>
         </form>
       )}
-      {showEmails && (
-        <p className="sub">
-          Mit E-Mail kann sich der Spieler per Login-Link anmelden und selbst eintragen. Ohne E-Mail taucht er nur in der Statistik auf.
-        </p>
+      {canWrite && backend.kind === 'supabase' && (
+        <p className="sub">Mit E-Mail kann sich der Spieler anmelden, selbst eintragen und sein Profil pflegen. Echten Namen und Bild ergänzt man im Profil.</p>
       )}
-      <div className="stack">
+      {!isMember && <p className="sub">Profile mit echten Namen und Bildern sehen nur angemeldete Spieler.</p>}
+
+      <div className="plist-players">
         {players.length === 0 && <p className="sub">Noch niemand eingetragen.</p>}
-        {players.map((p) => (
-          <PlayerRow key={p.id} p={p} email={emails[p.id]} showEmail={showEmails}
-            info={stats[p.id] ? `${stats[p.id].pausen} Pausen · ${stats[p.id].runden} Runden` : 'noch nicht gespielt'} />
-        ))}
+        {players.map((p) => {
+          const s = stats[p.id];
+          const info = s ? `${s.pausen} Pausen · ${s.runden} Runden` : 'noch nicht gespielt';
+          const content = (
+            <>
+              <Avatar p={p.id} size={44} />
+              <span className="pinfo">
+                <span className="row">
+                  <b>{name(p.id)}</b>
+                  {p.hidden && <span className="tag">ausgeblendet</span>}
+                  {isMember && priv.accounts[p.id]?.linked && <span className="tag">Login</span>}
+                </span>
+                <span className="sub">{[realName(p.id), info].filter(Boolean).join(' · ')}</span>
+              </span>
+              {isMember && <span className="chev" aria-hidden="true">›</span>}
+            </>
+          );
+          return isMember ? (
+            <button key={p.id} className="prow" onClick={() => openProfile(p.id)}>{content}</button>
+          ) : (
+            <div key={p.id} className="prow">{content}</div>
+          );
+        })}
       </div>
-      <p className="sub">Ausgeblendete Spieler tauchen nicht mehr in der Auswahl auf, ihre Statistik bleibt erhalten.</p>
     </section>
-  );
-}
-
-function PlayerRow({ p, email, showEmail, info }: { p: Player; email?: string; showEmail: boolean; info: string }) {
-  const { backend, run, busy, canWrite } = useApp();
-  const [edit, setEdit] = useState(false);
-  const [name, setName] = useState(p.name);
-  const [mail, setMail] = useState(email ?? '');
-
-  const save = async () => {
-    const n = name.trim().slice(0, 24);
-    if (!n) return;
-    const ok = await run(async () => {
-      if (n !== p.name) await backend.updatePlayer(p.id, { name: n });
-      if (showEmail && mail.trim() !== (email ?? '')) await backend.setEmail(p.id, mail.trim() || null);
-    }, 'Gespeichert');
-    if (ok) setEdit(false);
-  };
-
-  if (edit)
-    return (
-      <form className="row" style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
-        <input id={`rn-${p.id}`} type="text" maxLength={24} value={name} onChange={(e) => setName(e.target.value)} aria-label="Name" autoFocus />
-        {showEmail && <input id={`rm-${p.id}`} type="email" value={mail} placeholder="E-Mail (optional)" onChange={(e) => setMail(e.target.value)} aria-label="E-Mail" />}
-        <button className="btn small primary" disabled={busy}>Speichern</button>
-        <button type="button" className="btn small ghost" onClick={() => { setEdit(false); setName(p.name); setMail(email ?? ''); }}>Abbrechen</button>
-      </form>
-    );
-
-  return (
-    <div className="row between" style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>
-      <span className="row">
-        <Dot p={p.id} />
-        <b>{p.name}</b>
-        {p.hidden && <span className="tag">ausgeblendet</span>}
-        {showEmail && (email ? <span className="tag">Login</span> : null)}
-        <span className="sub">{info}</span>
-      </span>
-      {canWrite && (
-        <span className="row">
-          <button className="btn small ghost" onClick={() => { setMail(email ?? ''); setEdit(true); }}>Bearbeiten</button>
-          <button className="btn small ghost" disabled={busy} onClick={() => void run(() => backend.updatePlayer(p.id, { hidden: !p.hidden }))}>
-            {p.hidden ? 'Einblenden' : 'Ausblenden'}
-          </button>
-        </span>
-      )}
-    </div>
   );
 }

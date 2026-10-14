@@ -1,14 +1,24 @@
 import { crownCheck, roundInfo, serveRule } from './game';
 import type { Data, GameEvent, Pause, Player, Round } from './types';
 
-/** Erfundene Beispieldaten (Informatik-Pioniere), deterministisch erzeugt. */
+/** Beispiel-Spieler: Informatik-Pioniere mit Spitznamen. Spieler-ID ist `demo-<index>`. */
+export const DEMO_PEOPLE = [
+  { nick: 'Countess', first: 'Ada', last: 'Lovelace' },
+  { nick: 'Tux', first: 'Linus', last: 'Torvalds' },
+  { nick: 'Bugfinder', first: 'Grace', last: 'Hopper' },
+  { nick: 'Enigma', first: 'Alan', last: 'Turing' },
+  { nick: 'Substitution', first: 'Barbara', last: 'Liskov' },
+  { nick: 'Goto', first: 'Edsger', last: 'Dijkstra' },
+];
+
+/** Erfundene Beispieldaten, deterministisch erzeugt. */
 export function makeDemo(now = Date.now()): Data {
   let seed = 7;
   const rnd = () => {
     seed = (seed * 16807) % 2147483647;
     return seed / 2147483647;
   };
-  const names = ['Ada', 'Linus', 'Grace', 'Alan', 'Barbara', 'Edsger'];
+  const names = DEMO_PEOPLE.map((p) => p.nick);
   const skill = [0.62, 0.5, 0.57, 0.45, 0.4, 0.52];
   const players: Player[] = names.map((name, i) => ({ id: `demo-${i}`, name, hidden: false, createdAt: i }));
   const ids = players.map((p) => p.id);

@@ -269,7 +269,7 @@ function RunningRound({ pa, r }: { pa: Pause; r: Round }) {
 }
 
 function Final({ pa, r }: { pa: Pause; r: Round }) {
-  const { addEvent, busy, canWrite, name } = useApp();
+  const { addEvent, busy, canWrite, name, avatar } = useApp();
   const [picked, setPicked] = useState<string | null>(null);
   const rule = serveRule(pa, r);
   const i = roundInfo(r);
@@ -294,6 +294,7 @@ function Final({ pa, r }: { pa: Pause; r: Round }) {
   const side = (p: string) => (
     <div className="fin">
       <div className="row"><Dot p={p} /><span className="sub"><CrownIcon /> {crownsOf(p)}{p === king ? ' · König' : ''}</span></div>
+      {avatar(p) && <img className="fin-art" src={avatar(p)!} alt="" />}
       <div className="nm">{name(p)}</div>
       {tie && canWrite ? (
         <button className="chip" aria-pressed={picked === p} onClick={() => setPicked(picked === p ? null : p)}>Angabe gewonnen · schlägt auf</button>

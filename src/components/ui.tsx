@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Data, NewEvent, Pause } from '../domain/types';
+import type { Data, NewEvent, Pause, PrivateData } from '../domain/types';
 import type { Backend, Session } from '../lib/backend';
 
 export interface AppCtx {
@@ -15,8 +15,20 @@ export interface AppCtx {
   addEvent: (roundId: string, seq: number, ev: NewEvent, ok?: string) => Promise<boolean>;
   /** Nimmt den letzten Eintrag der Pause zurück, zuerst wartende Offline-Einträge. */
   undo: (pa: Pause) => void;
+  /** Spitzname, für alle sichtbar */
   name: (id: string) => string;
   color: (id: string) => string;
+
+  /** Eingetragener Spieler: sieht echte Namen, Profile und Bilder */
+  isMember: boolean;
+  priv: PrivateData;
+  refreshPrivate: () => Promise<void>;
+  canEditPlayer: (id: string) => boolean;
+  /** Vor- und Nachname, nur für Mitglieder, sonst null */
+  realName: (id: string) => string | null;
+  avatar: (id: string) => string | null;
+  openProfile: (id: string) => void;
+  closeProfile: () => void;
 }
 
 export const Ctx = createContext<AppCtx | null>(null);
@@ -44,4 +56,19 @@ export function Dot({ p }: { p: string }) {
   return <span className="dot" style={{ background: color(p) }} />;
 }
 
-export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const initials = (s: string) =>
+  s.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+
+/** Profilbild ohne Rahmen (freigestellte Bilder bleiben freigestellt). Ohne Bild: Initialen in der Spielerfarbe. */
+export function Avatar({ p, size }: { p: string; size: number }) {
+  const { avatar, name, color } = useApp();
+  const url = avatar(p);
+  if (url) return <img className="avatar" src={url} alt="" style={{ width: size, height: size }} />;
+  return (
+    <span className="avatar-ph" aria-hidden="true" style={{ width: size, height: size, background: color(p), fontSize: size * 0.4 }}>
+      {initials(name(p))}
+    </span>
+  );
+}
+
+export const plural =(n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

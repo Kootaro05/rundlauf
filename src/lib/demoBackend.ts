@@ -1,11 +1,17 @@
-import { makeDemo } from '../domain/demo';
+import { DEMO_PEOPLE, makeDemo } from '../domain/demo';
 import { isFinished } from '../domain/game';
-import type { Data } from '../domain/types';
+import type { Data, PlayerPrivate, PrivateData } from '../domain/types';
 import { AppError, type Backend } from './backend';
 
 /** Speichert nur im Arbeitsspeicher. Für lokales Ausprobieren ohne Supabase-Projekt. */
 export function createDemoBackend(): Backend {
   let data: Data = makeDemo();
+  // Echte Namen der Beispiel-Spieler. Keine Logins, darum sind alle Profile bearbeitbar.
+  const emptyInfo = (): PlayerPrivate => ({ firstName: null, lastName: null, avatarPath: null, avatarUrl: null });
+  const priv: PrivateData = {
+    info: Object.fromEntries(DEMO_PEOPLE.map((p, i) => [`demo-${i}`, { ...emptyInfo(), firstName: p.first, lastName: p.last }])),
+    accounts: {},
+  };
   const listeners = new Set<() => void>();
   const changed = () => listeners.forEach((l) => l());
   const id = () => Math.random().toString(36).slice(2, 10);
@@ -88,12 +94,28 @@ export function createDemoBackend(): Backend {
       data.players.push({ id: id(), name, hidden: false, createdAt: Date.now() });
       changed();
     },
-    async updatePlayer(pid, patch) {
+    async setHidden(pid, hidden) {
       const p = data.players.find((x) => x.id === pid);
-      if (p) Object.assign(p, patch);
+      if (p) p.hidden = hidden;
       changed();
     },
     async setEmail() {},
-    playerEmails: async () => ({}),
+
+    loadPrivate: async () => structuredClone(priv),
+    async saveProfile(pid, p) {
+      const pl = data.players.find((x) => x.id === pid);
+      if (pl) pl.name = p.name;
+      priv.info[pid] = { ...(priv.info[pid] ?? emptyInfo()), firstName: p.firstName, lastName: p.lastName };
+      changed();
+    },
+    async uploadAvatar(pid, image) {
+      const url = URL.createObjectURL(image);
+      priv.info[pid] = { ...(priv.info[pid] ?? emptyInfo()), avatarPath: url, avatarUrl: url };
+      changed();
+    },
+    async removeAvatar(pid) {
+      priv.info[pid] = { ...(priv.info[pid] ?? emptyInfo()), avatarPath: null, avatarUrl: null };
+      changed();
+    },
   };
 }

@@ -1,4 +1,4 @@
-import type { Data, NewEvent, Pause } from '../domain/types';
+import type { Data, NewEvent, Pause, PrivateData } from '../domain/types';
 
 export interface Session {
   email: string | null;
@@ -38,11 +38,19 @@ export interface Backend {
   deletePause(pauseId: string): Promise<void>;
 
   addPlayer(name: string, email: string | null): Promise<void>;
-  updatePlayer(id: string, patch: { name?: string; hidden?: boolean }): Promise<void>;
+  setHidden(id: string, hidden: boolean): Promise<void>;
+  /** Nur bei Spielern, die sich noch nie angemeldet haben */
   setEmail(id: string, email: string | null): Promise<void>;
-  /** E-Mails der Spieler, nur für Mitglieder sichtbar */
-  playerEmails(): Promise<Record<string, string>>;
+
+  /** Echte Namen, Profilbilder und Logins, nur für eingetragene Spieler. Für alle anderen leer. */
+  loadPrivate(): Promise<PrivateData>;
+  saveProfile(id: string, p: { name: string; firstName: string | null; lastName: string | null }): Promise<void>;
+  /** Lädt ein vorbereitetes Bild hoch (siehe lib/image.ts) und löscht das alte */
+  uploadAvatar(id: string, image: Blob, oldPath: string | null): Promise<void>;
+  removeAvatar(id: string, path: string): Promise<void>;
 }
+
+export const EMPTY_PRIVATE: PrivateData = { info: {}, accounts: {} };
 
 export class AppError extends Error {
   /** true, wenn der Server nicht erreichbar war (kein Netz), statt dass er abgelehnt hat */
