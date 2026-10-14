@@ -191,6 +191,30 @@ create policy "schreiben: mitglieder" on public.round_players   for all to authe
 create policy "schreiben: mitglieder" on public.events          for all to authenticated using (public.is_member()) with check (public.is_member());
 
 -- ---------------------------------------------------------------------------
+-- Rechte für die Data API
+-- Ausdrücklich vergeben, damit das Schema auch mit abgeschaltetem
+-- "Automatically expose new tables" funktioniert. Wer wirklich lesen und
+-- schreiben darf, entscheiden die Zugriffsregeln (RLS) oben.
+-- ---------------------------------------------------------------------------
+
+grant usage on schema public to anon, authenticated;
+
+grant select on public.players, public.pauses, public.pause_players,
+                public.rounds, public.round_players, public.events
+  to anon, authenticated;
+grant insert, update, delete on public.players, public.pauses, public.pause_players,
+                                public.rounds, public.round_players, public.events
+  to authenticated;
+grant select, insert, update, delete on public.player_accounts to authenticated;
+
+-- Funktionen nur für die Rollen, die sie brauchen
+revoke execute on function public.is_member(), public.link_me(), public.start_pause(uuid[]),
+  public.start_round(uuid, uuid[]), public.end_pause(uuid), public.add_player(text, text) from public;
+grant execute on function public.is_member() to anon, authenticated;
+grant execute on function public.link_me(), public.start_pause(uuid[]), public.start_round(uuid, uuid[]),
+  public.end_pause(uuid), public.add_player(text, text) to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Live-Updates für alle offenen Geräte
 -- ---------------------------------------------------------------------------
 
