@@ -13,6 +13,22 @@ Vite + React + TypeScript, Daten und Login über Supabase.
 - Jede Pause startet für alle bei 0 Kronen.
 
 Die Logik steht in [`src/domain/game.ts`](src/domain/game.ts) und ist in [`game.test.ts`](src/domain/game.test.ts) getestet.
+Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.sql`](supabase/migrations/0002_regeln.sql)).
+
+## Was die App kann
+
+- **Live:** Pause und Runden starten, Fehler antippen (Schwimmer, Krone setzen oder raus), Finale mit Aufschlagregel, Rückgängig.
+- **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
+  Runden und Pausen starten geht nur online. Die App startet auch ohne Netz mit dem zuletzt geladenen Stand.
+- **Dashboard:** Rekorde pro Tag, Woche, Semester und insgesamt, Tabelle mit Quoten, Kronen-Kurve, Duelle (Finalbilanz
+  jeder gegen jeden) und Auszeichnungen. Ein Klick auf einen Namen öffnet das Spielerprofil mit ELO-Verlauf,
+  Lieblings- und Angstgegner und längster Siegesserie.
+- **ELO:** Jede Runde zählt nach Platzierung: Finalsieger, Finalverlierer, dann rückwärts in der Raus-Reihenfolge.
+  Jeder wird mit jedem anderen der Runde verglichen, als hätten sie ein Duell gespielt. Wer vor einem Stärkeren landet,
+  gewinnt mehr. Alle starten bei 1000, pro Runde sind höchstens ±32 drin ([`elo.ts`](src/domain/elo.ts)).
+- **Verlauf:** Jede Pause mit Kronen-Diagramm und allen Einträgen. Unter *Korrigieren* lassen sich Einträge und Runden
+  löschen, Finalsieger tauschen und Aufschläger ändern. Vorher wird die ganze Pause nachgespielt; würde eine Änderung
+  spätere Einträge ungültig machen (z. B. eine Krone, die es ohne den gelöschten Sieg nicht gäbe), wird sie abgelehnt.
 
 ## Lokal starten
 
@@ -35,7 +51,8 @@ npm test
 | Datenbank & Login | Supabase, Projekt `rundlauf` (Region Frankfurt) | Daten, Zugriffsregeln, Login per Mail-Code |
 | Mailversand | Resend, Domain `rundlauf.timberborn.de` (Region Irland) | Login-Mails von `auth@rundlauf.timberborn.de` |
 | DNS | Strato, Domain `timberborn.de` | Subdomain für App und Mailversand |
-| Code | https://github.com/Kootaro05/rundlauf | |
+| Code | https://github.com/Kootaro05/rundlauf | GitHub Actions prüft bei jedem Push Typen, Tests und Build |
+| Wachhalten | Vercel-Cron, täglich 06:00 UTC → [`/api/ping`](api/ping.ts) | Liest eine Zeile aus Supabase, damit das Gratis-Projekt nicht nach 7 Tagen pausiert |
 
 `https://rundlauf.vercel.app` funktioniert weiterhin, gilt auf dem Handy aber als eigene App mit eigener Anmeldung.
 
@@ -49,7 +66,8 @@ So ist das laufende System aufgesetzt. Die Schritte braucht man nur für ein neu
    - **Enable Data API**: an
    - **Automatically expose new tables**: aus (die Rechte vergibt das Schema selbst)
    - **Enable automatic RLS**: an
-2. Im **SQL Editor** den Inhalt von [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) ausführen.
+2. Im **SQL Editor** nacheinander [`0001_init.sql`](supabase/migrations/0001_init.sql) und
+   [`0002_regeln.sql`](supabase/migrations/0002_regeln.sql) ausführen.
 3. Dich selbst als ersten Spieler anlegen, siehe [`supabase/seed.example.sql`](supabase/seed.example.sql).
    Alle weiteren Spieler legt man danach in der App im Tab *Spieler* an.
 4. **Project URL** und **anon Key** (Project Settings → API Keys → *Legacy anon, service_role API keys*)
