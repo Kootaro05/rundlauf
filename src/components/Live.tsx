@@ -97,8 +97,9 @@ function StartPause() {
       {canWrite && (
         <div className="row">
           <button className="btn primary" disabled={busy || n < 2} onClick={() => void run(() => backend.startPause([...selection.sel]), 'Pause gestartet. Alle bei 0 Kronen.')}>
-            Pause starten ({n})
+            Pause starten
           </button>
+          <span className="sub num">{n}/{visible.length} Spieler</span>
         </div>
       )}
     </section>
@@ -177,9 +178,12 @@ function RoundSetup({ pa }: { pa: Pause }) {
       <PlayerPicker {...selection} />
       {canWrite && (
         <div className="row between">
-          <button className="btn primary" disabled={busy || n < 2} onClick={() => void run(() => backend.startRound(pa.id, [...selection.sel]))}>
-            Runde starten ({n})
-          </button>
+          <span className="row">
+            <button className="btn primary" disabled={busy || n < 2} onClick={() => void run(() => backend.startRound(pa.id, [...selection.sel]))}>
+              Runde starten
+            </button>
+            <span className="sub num">{n}/{visible.length} Spieler</span>
+          </span>
           {confirmEnd ? (
             <span className="row">
               <span className="sub">Pause wirklich beenden?</span>
