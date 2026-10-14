@@ -34,7 +34,7 @@ export function Admin() {
     <section className="stack">
       <div className="row between">
         <h2>Admin</h2>
-        <div className="seg" role="group" aria-label="Bereich">
+        <div className="seg scrollx" role="group" aria-label="Bereich">
           {SECTIONS.map((s) => (
             <button key={s.id} aria-pressed={section === s.id} onClick={() => setSection(s.id)}>{s.label}</button>
           ))}
