@@ -1,5 +1,5 @@
 import { createClient, type PostgrestError } from '@supabase/supabase-js';
-import type { Data, EventType, Pause, PrivateData } from '../domain/types';
+import type { Activity, Data, EventType, Pause, PrivateData } from '../domain/types';
 import { AppError, EMPTY_PRIVATE, type Backend } from './backend';
 
 interface EventRow {
@@ -70,15 +70,14 @@ export function createSupabaseBackend(url: string, key: string): Backend {
         const { data } = await sb.auth.getSession();
         if (!data.session) return null;
         // Die Zuordnung Login → Spieler wird gemerkt, damit man auch nach einem Neustart ohne Netz eintragen kann
-        const memo = `rk.player.${data.session.user.id}`;
-        const { data: pid, error } = await sb.rpc('link_me');
-        let playerId = (pid as string | null) ?? null;
+        const memo = `rk.login.${data.session.user.id}`;
+        const [link, admin] = await Promise.all([sb.rpc('link_me'), sb.rpc('is_admin')]);
+        let known = { playerId: (link.data as string | null) ?? null, isAdmin: admin.data === true };
         try {
-          if (error) playerId = localStorage.getItem(memo);
-          else if (playerId) localStorage.setItem(memo, playerId);
-          else localStorage.removeItem(memo);
+          if (link.error) known = { ...known, ...JSON.parse(localStorage.getItem(memo) ?? '{}') };
+          else localStorage.setItem(memo, JSON.stringify(known));
         } catch { /* Speicher gesperrt */ }
-        return { email: data.session.user.email ?? null, playerId };
+        return { email: data.session.user.email ?? null, ...known };
       },
       onChange(cb) {
         const { data } = sb.auth.onAuthStateChange(() => cb());
@@ -180,22 +179,15 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       check(await sb.from('pauses').delete().eq('id', pauseId));
     },
 
-    async addPlayer(name, email) {
-      check(await sb.rpc('add_player', { p_name: name, p_email: email }));
-    },
-    async setHidden(id, hidden) {
-      check(await sb.rpc('set_player_hidden', { p_player_id: id, p_hidden: hidden }));
-    },
-    async setEmail(id, email) {
-      if (email) check(await sb.from('player_accounts').upsert({ player_id: id, email: email.toLowerCase(), user_id: null }));
-      else check(await sb.from('player_accounts').delete().eq('player_id', id));
+    async addPlayer(name) {
+      return check(await sb.rpc('add_player', { p_name: name, p_email: null })).data as string;
     },
 
     async loadPrivate(): Promise<PrivateData> {
       // Für alle außer eingetragenen Spielern liefern die Zugriffsregeln einfach nichts
       const [pr, acc] = await Promise.all([
         sb.from('player_private').select('player_id, first_name, last_name, avatar_path'),
-        sb.from('player_accounts').select('player_id, email, user_id'),
+        sb.from('player_accounts').select('player_id, email, user_id, is_admin'),
       ]);
       if (pr.error || acc.error) return EMPTY_PRIVATE;
       const rows = pr.data as { player_id: string; first_name: string | null; last_name: string | null; avatar_path: string | null }[];
@@ -210,14 +202,14 @@ export function createSupabaseBackend(url: string, key: string): Backend {
           firstName: r.first_name, lastName: r.last_name, avatarPath: r.avatar_path,
           avatarUrl: r.avatar_path ? (urls[r.avatar_path] ?? null) : null,
         }])),
-        accounts: Object.fromEntries((acc.data as { player_id: string; email: string; user_id: string | null }[])
-          .map((r) => [r.player_id, { email: r.email, linked: !!r.user_id }])),
+        accounts: Object.fromEntries((acc.data as { player_id: string; email: string; user_id: string | null; is_admin: boolean }[])
+          .map((r) => [r.player_id, { email: r.email, linked: !!r.user_id, userId: r.user_id, isAdmin: r.is_admin }])),
       };
     },
     async saveProfile(id, p) {
       // Die Zugriffsregeln lassen fremde Änderungen ins Leere laufen, darum die geänderten Zeilen zählen
       const res = check(await sb.from('players').update({ name: p.name }).eq('id', id).select('id'));
-      if (!res.data?.length) throw new AppError('Dieses Profil darf nur der Spieler selbst ändern.');
+      if (!res.data?.length) throw new AppError('Dieses Profil darf nur der Spieler selbst oder der Admin ändern.');
       check(await sb.from('player_private').upsert({
         player_id: id, first_name: p.firstName, last_name: p.lastName, updated_at: new Date().toISOString(),
       }));
@@ -232,6 +224,54 @@ export function createSupabaseBackend(url: string, key: string): Backend {
     async removeAvatar(id, path) {
       check(await sb.from('player_private').update({ avatar_path: null, updated_at: new Date().toISOString() }).eq('player_id', id));
       await sb.storage.from('avatars').remove([path]);
+    },
+
+    async inviteInfo(token) {
+      const res = check(await sb.rpc('invite_info', { p_token: token }));
+      const row = (res.data as { player_name: string | null; valid: boolean; reason: string | null }[])[0];
+      return { playerName: row?.player_name ?? null, valid: !!row?.valid, reason: row?.reason ?? 'Diesen Einladungslink gibt es nicht.' };
+    },
+    async redeemInvite(token, p) {
+      check(await sb.rpc('redeem_invite', { p_token: token, p_name: p.name, p_first: p.firstName ?? '', p_last: p.lastName ?? '' }));
+    },
+
+    async setHidden(id, hidden) {
+      check(await sb.rpc('set_player_hidden', { p_player_id: id, p_hidden: hidden }));
+    },
+    async createInvite(playerId) {
+      return check(await sb.rpc('create_invite', { p_player_id: playerId })).data as string;
+    },
+    async listInvites() {
+      const res = check(await sb.from('invites').select('id, player_id, created_at, expires_at, used_at, revoked_at').order('created_at', { ascending: false }));
+      return (res.data as { id: string; player_id: string; created_at: string; expires_at: string; used_at: string | null; revoked_at: string | null }[])
+        .map((r) => ({
+          id: r.id, playerId: r.player_id, createdAt: ms(r.created_at), expiresAt: ms(r.expires_at),
+          usedAt: r.used_at ? ms(r.used_at) : null, revokedAt: r.revoked_at ? ms(r.revoked_at) : null,
+        }));
+    },
+    async revokeInvite(id) {
+      check(await sb.from('invites').update({ revoked_at: new Date().toISOString() }).eq('id', id));
+    },
+    async unlinkAccount(playerId) {
+      check(await sb.rpc('unlink_account', { p_player_id: playerId }));
+    },
+    async mergePlayers(from, into) {
+      check(await sb.rpc('merge_players', { p_from: from, p_into: into }));
+    },
+    async loadActivity(limit) {
+      // Neu eingetragen: aus den Einträgen selbst (created_by); gelöscht/geändert: aus dem Protokoll
+      const [ev, log] = await Promise.all([
+        sb.from('events').select('id, round_id, type, player_id, loser_id, pot, created_at, created_by').order('created_at', { ascending: false }).limit(limit),
+        sb.from('audit_log').select('id, at, user_id, action, table_name, old_row, new_row').order('at', { ascending: false }).limit(limit),
+      ]);
+      check(ev);
+      check(log);
+      const inserts: Activity[] = (ev.data as { id: string; created_at: string; created_by: string | null }[]).map((r) => ({
+        id: `e-${r.id}`, at: ms(r.created_at), userId: r.created_by, action: 'insert', table: 'events', row: r as Record<string, unknown>, before: null,
+      }));
+      const changes: Activity[] = (log.data as { id: number; at: string; user_id: string | null; action: Activity['action']; table_name: string; old_row: Record<string, unknown> | null; new_row: Record<string, unknown> | null }[])
+        .map((r) => ({ id: `a-${r.id}`, at: ms(r.at), userId: r.user_id, action: r.action, table: r.table_name, row: r.new_row, before: r.old_row }));
+      return [...inserts, ...changes].sort((a, b) => b.at - a.at).slice(0, limit);
     },
   };
 }

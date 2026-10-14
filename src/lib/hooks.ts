@@ -59,20 +59,14 @@ export function useData(backend: Backend) {
 export function useSession(backend: Backend) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    const refresh = () =>
-      backend.auth.current().then((s) => {
-        if (!alive) return;
-        setSession(s);
-        setReady(true);
-      });
-    void refresh();
-    const unsub = backend.auth.onChange(() => void refresh());
-    return () => {
-      alive = false;
-      unsub();
-    };
+  const refresh = useCallback(async () => {
+    const s = await backend.auth.current();
+    setSession(s);
+    setReady(true);
   }, [backend]);
-  return { session, ready };
+  useEffect(() => {
+    void refresh();
+    return backend.auth.onChange(() => void refresh());
+  }, [backend, refresh]);
+  return { session, ready, refresh };
 }

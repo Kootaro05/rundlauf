@@ -5,7 +5,10 @@ import { Live } from './components/Live';
 import { LoginForm } from './components/Login';
 import { Players } from './components/Players';
 import { CrownIcon, Ctx, type AppCtx } from './components/ui';
-import { currentRound, openPause, roundInfo } from './domain/game';
+import { Admin } from './components/Admin';
+import { InvitePage } from './components/InvitePage';
+import { checkEvent, currentRound, nextSeq, openPause, roundInfo } from './domain/game';
+import { loadPendingInvite, redeemPendingInvite } from './lib/invite';
 import { fmtTime } from './domain/periods';
 import type { NewEvent, Pause, PrivateData } from './domain/types';
 import { EMPTY_PRIVATE, isNetworkError } from './lib/backend';
@@ -19,6 +22,12 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'hist', label: 'Verlauf' },
   { id: 'players', label: 'Spieler' },
 ];
+
+/** Ein zurückgenommener Eintrag, den "Wiederholen" wieder eintragen kann */
+interface RedoItem {
+  roundId: string;
+  ev: NewEvent;
+}
 
 /** Chrome/Edge/Android bieten die Installation über dieses Ereignis an (Safari kennt es nicht). */
 interface BeforeInstallPromptEvent extends Event {
@@ -104,9 +113,10 @@ export default function App() {
   }, []);
   // Was die App zeigt: Serverstand plus Einträge, die noch auf Netz warten
   const data = useMemo(() => serverData && applyOutbox(serverData, outbox), [serverData, outbox]);
-  const { session, ready } = useSession(backend);
+  const { session, ready, refresh: refreshSession } = useSession(backend);
   const { route, go, openProfile, closeProfile } = useRoute();
   const tab = route.tab;
+  const isAdmin = !!session?.isAdmin;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [login, setLogin] = useState(false);
@@ -131,6 +141,19 @@ export default function App() {
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setMsg(null), 2800);
   }, []);
+
+  // Angemeldet, aber noch keinem Spieler zugeordnet, und eine Einladung wartet: einlösen
+  // (z. B. wenn der Eingeladene den Link aus der Mail statt den Code benutzt hat)
+  useEffect(() => {
+    if (!session || session.playerId || !loadPendingInvite()) return;
+    redeemPendingInvite(backend)
+      .then(async (done) => {
+        if (!done) return;
+        await refreshSession();
+        toast('Willkommen! Dein Login ist eingerichtet.');
+      })
+      .catch((e: unknown) => toast(e instanceof Error ? e.message : String(e)));
+  }, [session, backend, refreshSession, toast]);
 
   const run = useCallback(
     async (fn: () => Promise<void>, ok?: string) => {
@@ -184,7 +207,7 @@ export default function App() {
     };
   }, [outbox.length, flush]);
 
-  const addEvent = useCallback(
+  const submitEvent = useCallback(
     async (roundId: string, seq: number, ev: NewEvent, ok?: string) => {
       const queue = () => {
         setOutbox((o) => [...o, { key: crypto.randomUUID(), roundId, seq, ev, t: Date.now() }]);
@@ -211,8 +234,27 @@ export default function App() {
     [backend, reload, setOutbox, toast],
   );
 
+  // Wiederholen: was auf diesem Gerät zurückgenommen wurde, bis jemand etwas Neues einträgt
+  const [redoStack, setRedoStack] = useState<RedoItem[]>([]);
+
+  const addEvent = useCallback(
+    (roundId: string, seq: number, ev: NewEvent, ok?: string) => {
+      setRedoStack([]);
+      return submitEvent(roundId, seq, ev, ok);
+    },
+    [submitEvent],
+  );
+
   const undo = useCallback(
     (pa: Pause) => {
+      const lastRound = pa.rounds.at(-1);
+      const lastEvent = lastRound?.events.at(-1);
+      // Den Eintrag merken, damit "Wiederholen" ihn wieder eintragen kann. Eine leere Runde lässt sich nicht wiederholen.
+      if (lastRound && lastEvent) {
+        const { type, p, loser, server, pot } = lastEvent;
+        setRedoStack((s) => [...s, { roundId: lastRound.id, ev: { type, p, loser, server, pot } }]);
+      } else setRedoStack([]);
+
       const roundIds = new Set(pa.rounds.map((r) => r.id));
       const pending = outbox.filter((p) => roundIds.has(p.roundId));
       if (pending.length) {
@@ -226,26 +268,43 @@ export default function App() {
     [outbox, setOutbox, toast, run, backend],
   );
 
+  const redo = useCallback(() => {
+    const item = redoStack.at(-1);
+    if (!item || !data) return;
+    setRedoStack((s) => s.slice(0, -1));
+    const pa = data.pauses.find((x) => x.rounds.some((r) => r.id === item.roundId));
+    const r = pa?.rounds.find((x) => x.id === item.roundId);
+    const err = !pa || !r ? 'Die Runde gibt es nicht mehr.' : checkEvent(pa, r, item.ev);
+    if (err || !r) {
+      setRedoStack([]);
+      toast(`Wiederholen geht nicht mehr: ${err}`);
+      return;
+    }
+    void submitEvent(r.id, nextSeq(r), item.ev, 'Wiederhergestellt');
+  }, [redoStack, data, submitEvent, toast]);
+
   const ctx = useMemo<AppCtx | null>(() => {
     if (!data) return null;
     const byId = new Map(data.players.map((p) => [p.id, p]));
     const order = [...data.players].sort((a, b) => a.createdAt - b.createdAt).map((p) => p.id);
     return {
-      data, backend, session, busy, run, toast, addEvent, undo,
+      data, backend, session, busy, run, toast, addEvent, undo, redo,
+      redoNext: redoStack.at(-1)?.ev ?? null,
       canWrite: isMember,
       isMember,
+      isAdmin,
       priv,
       refreshPrivate,
       openProfile,
       closeProfile,
-      // Eigenes Profil, oder ein Spieler, der sich noch nie angemeldet hat
-      canEditPlayer: (id) => isMember && (id === session?.playerId || !priv.accounts[id]?.linked),
+      // Das eigene Profil, der Admin alle
+      canEditPlayer: (id) => isAdmin || (isMember && id === session?.playerId),
       name: (id) => byId.get(id)?.name ?? 'Unbekannt',
       realName: (id) => [priv.info[id]?.firstName, priv.info[id]?.lastName].filter(Boolean).join(' ') || null,
       avatar: (id) => priv.info[id]?.avatarUrl ?? null,
       color: (id) => `var(--c${Math.max(0, order.indexOf(id)) % 8})`,
     };
-  }, [data, backend, session, busy, run, toast, addEvent, undo, isMember, priv, refreshPrivate, openProfile, closeProfile]);
+  }, [data, backend, session, busy, run, toast, addEvent, undo, redo, redoStack, isMember, isAdmin, priv, refreshPrivate, openProfile, closeProfile]);
 
   const pa = data ? openPause(data.pauses) : null;
   const r = currentRound(pa);
@@ -283,7 +342,7 @@ export default function App() {
       </header>
       <nav className="tabs" aria-label="Bereiche">
         <div className="wrap" role="tablist">
-          {TABS.map((t) => (
+          {[...TABS, ...(isAdmin ? [{ id: 'admin' as Tab, label: 'Admin' }] : [])].map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => go({ tab: t.id, player: null })}>{t.label}</button>
           ))}
         </div>
@@ -295,9 +354,9 @@ export default function App() {
           </div>
         )}
         {login && !session && <LoginForm backend={backend} onClose={() => setLogin(false)} />}
-        {session && !session.playerId && (
+        {session && !session.playerId && tab !== 'invite' && (
           <div className="banner">
-            <span>Angemeldet als <b>{session.email}</b>, aber diese E-Mail ist keinem Spieler zugeordnet. Bitte jemanden aus der Runde, sie im Tab „Spieler“ einzutragen.</span>
+            <span>Angemeldet als <b>{session.email}</b>, aber diese E-Mail ist keinem Spieler zugeordnet. Für einen eigenen Login brauchst du einen Einladungslink vom Admin.</span>
           </div>
         )}
         {outbox.length > 0 && (
@@ -313,7 +372,19 @@ export default function App() {
         ) : (
           <div className="banner err"><span>Daten konnten nicht geladen werden: {error}</span><button className="btn small" onClick={() => void reload()}>Nochmal</button></div>
         ))}
-        {!ctx ? (
+        {tab === 'invite' && route.token ? (
+          <InvitePage
+            token={route.token}
+            backend={backend}
+            session={session}
+            onDone={async (playerId) => {
+              await refreshSession();
+              toast('Willkommen! Dein Login ist eingerichtet.');
+              go({ tab: 'players', player: playerId }, true);
+            }}
+            onLeave={() => go({ tab: 'live', player: null }, true)}
+          />
+        ) : !ctx ? (
           !error && <div className="card empty"><b>Lade Daten …</b></div>
         ) : (
           <Ctx.Provider value={ctx}>
@@ -321,6 +392,7 @@ export default function App() {
             {tab === 'dash' && <Dashboard />}
             {tab === 'hist' && <History />}
             {tab === 'players' && <Players profile={route.player} />}
+            {tab === 'admin' && (isAdmin ? <Admin /> : <div className="card empty"><b>Nur für den Admin.</b></div>)}
           </Ctx.Provider>
         )}
       </main>

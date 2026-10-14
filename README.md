@@ -17,7 +17,9 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
 
 ## Was die App kann
 
-- **Live:** Pause und Runden starten, Fehler antippen (Schwimmer, Krone setzen oder raus), Finale mit Aufschlagregel, Rückgängig.
+- **Live:** Pause und Runden starten, Fehler antippen (Schwimmer, Krone setzen oder raus), Finale mit Aufschlagregel,
+  Rückgängig und Wiederholen für die laufende Pause (Wiederholen auf dem eigenen Gerät, bis jemand etwas Neues einträgt).
+  Neue Spieler lassen sich spontan mit Spitzname anlegen.
 - **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
   Runden und Pausen starten geht nur online. Die App startet auch ohne Netz mit dem zuletzt geladenen Stand.
 - **Dashboard:** Rekorde pro Tag, Woche, Semester und insgesamt, Tabelle mit Quoten, Kronen-Kurve, Duelle (Finalbilanz
@@ -28,12 +30,23 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   gewinnt mehr. Alle starten bei 1000, pro Runde sind höchstens ±32 drin ([`elo.ts`](src/domain/elo.ts)).
 - **Spieler:** Liste mit Profilbildern. Ein Klick (hier oder auf einen Namen in der Tabelle) öffnet die Profilseite
   als eigene Unterseite (`#/spieler/<id>`): Kopf im E-Sport-Look mit freigestelltem Bild, ELO, Statistik, Rivalen.
-  Jeder pflegt sein eigenes Profil: Spitzname, Vor- und Nachname, Bild. Spieler, die sich noch nie angemeldet haben,
-  darf jedes Mitglied bearbeiten. Beim Hochladen wählt man den Ausschnitt selbst (verschieben, zoomen mit zwei Fingern,
-  Regler oder Mausrad). Alle Bilder haben dasselbe Hochformat 4:5 (512 × 640 px); ein durchsichtiger Rand wird vorher entfernt.
-- **Verlauf:** Jede Pause mit Kronen-Diagramm und allen Einträgen. Unter *Korrigieren* lassen sich Einträge und Runden
-  löschen, Finalsieger tauschen und Aufschläger ändern. Vorher wird die ganze Pause nachgespielt; würde eine Änderung
-  spätere Einträge ungültig machen (z. B. eine Krone, die es ohne den gelöschten Sieg nicht gäbe), wird sie abgelehnt.
+  Jeder pflegt sein eigenes Profil: Spitzname, Vor- und Nachname, Bild; alle anderen Profile pflegt der Admin.
+  Beim Hochladen wählt man den Ausschnitt selbst (verschieben, zoomen mit zwei Fingern, Regler oder Mausrad).
+  Alle Bilder haben dasselbe Hochformat 4:5 (512 × 640 px); ein durchsichtiger Rand wird vorher entfernt.
+- **Verlauf:** Jede Pause mit Kronen-Diagramm und allen Einträgen.
+- **Admin-Panel** (Reiter *Admin*, nur für den einen Admin):
+  - *Spieler:* anlegen mit Einladungslink, Einladungslink für spontan angelegte Spieler, Profil bearbeiten, ausblenden,
+    Login trennen, doppelt angelegte Spieler zusammenführen (alle Runden gehen an den anderen; nicht möglich, wenn
+    beide in derselben Runde waren).
+  - *Pausen:* vergangene Pausen korrigieren: Einträge und Runden löschen, Finalsieger tauschen, Aufschläger ändern,
+    ganze Pausen löschen. Vorher wird die Pause nachgespielt; würde eine Änderung spätere Einträge ungültig machen
+    (z. B. eine Krone, die es ohne den gelöschten Sieg nicht gäbe), wird sie abgelehnt.
+  - *Einladungen:* alle Links mit Status, offene zurückziehen.
+  - *Protokoll:* wer wann was eingetragen, gelöscht oder geändert hat.
+  - *Daten:* Export aller Daten als JSON (Datensicherung, der Gratis-Tarif hat keine abrufbaren Backups).
+- **Einladungen:** Ein Einladungslink (`#/einladung/<code>`) gilt einmal und 7 Tage. Der Eingeladene gibt E-Mail,
+  Spitzname, Vor- und Nachnamen ein, bestätigt mit dem Code aus der Mail und ist mit seinem Spieler verknüpft;
+  bisherige Runden unter diesem Spieler gehören dann ihm. In der Datenbank liegt nur ein Hash des Links.
 
 ## Lokal starten
 
@@ -72,7 +85,8 @@ So ist das laufende System aufgesetzt. Die Schritte braucht man nur für ein neu
    - **Automatically expose new tables**: aus (die Rechte vergibt das Schema selbst)
    - **Enable automatic RLS**: an
 2. Im **SQL Editor** nacheinander [`0001_init.sql`](supabase/migrations/0001_init.sql),
-   [`0002_regeln.sql`](supabase/migrations/0002_regeln.sql) und [`0003_profile.sql`](supabase/migrations/0003_profile.sql) ausführen.
+   [`0002_regeln.sql`](supabase/migrations/0002_regeln.sql), [`0003_profile.sql`](supabase/migrations/0003_profile.sql)
+   und [`0004_admin.sql`](supabase/migrations/0004_admin.sql) ausführen. Danach den Admin festlegen (letzte Zeile in 0004).
    0003 legt auch den privaten Bildspeicher `avatars` an.
 3. Dich selbst als ersten Spieler anlegen, siehe [`supabase/seed.example.sql`](supabase/seed.example.sql).
    Alle weiteren Spieler legt man danach in der App im Tab *Spieler* an.
@@ -151,17 +165,18 @@ Der Code steht mit Absicht im Betreff, so sieht man ihn schon in der Benachricht
 
 ### Wer darf was?
 
-| | ohne Login | eingetragener Spieler |
-|---|---|---|
-| Spitznamen, Live-Stand, Dashboard, Verlauf | ✓ | ✓ |
-| Echte Namen, Profilseiten, Profilbilder, E-Mails | – | ✓ |
-| Eintragen, Spieler anlegen, ausblenden, korrigieren | – | ✓ |
-| Profil (Spitzname, Name, Bild) ändern | – | das eigene, und Spieler, die sich noch nie angemeldet haben |
-| Login-E-Mail ändern | – | nur bei Spielern, die sich noch nie angemeldet haben |
+| | ohne Login | Spieler | Admin |
+|---|---|---|---|
+| Spitznamen, Live-Stand, Dashboard, Verlauf | ✓ | ✓ | ✓ |
+| Echte Namen, Profilseiten, Profilbilder | – | ✓ | ✓ |
+| Eintragen, Spieler schnell anlegen | – | ✓ | ✓ |
+| Laufende Pause korrigieren (Rückgängig/Wiederholen) | – | ✓ | ✓ |
+| Profil (Spitzname, Name, Bild) ändern | – | das eigene | alle |
+| Ausblenden, vergangene Pausen korrigieren, Einladungen, Logins, Protokoll, Export | – | – | ✓ |
 
-„Eingetragener Spieler“ heißt: angemeldet **und** die E-Mail gehört zu einem Spieler. Neue Mitspieler trägst du im Tab
-*Spieler* mit E-Mail ein; beim ersten Login werden sie automatisch verknüpft. Wer sich mit einer fremden E-Mail anmeldet,
-sieht nur, was auch ohne Login sichtbar ist. Durchgesetzt wird das in der Datenbank (RLS), nicht nur in der App.
+„Spieler“ heißt: angemeldet **und** der Login ist mit einem Spieler verknüpft, über einen Einladungslink.
+Wer sich mit einer fremden E-Mail anmeldet, sieht nur, was auch ohne Login sichtbar ist. Es gibt genau einen Admin;
+festgelegt wird er per SQL (siehe 0004). Durchgesetzt wird alles in der Datenbank (RLS), nicht nur in der App.
 
 ## Als App installieren
 

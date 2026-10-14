@@ -46,13 +46,37 @@ export interface PlayerPrivate {
 
 export interface Account {
   email: string;
-  /** Hat sich schon einmal angemeldet. Dann darf nur der Spieler selbst sein Profil ändern. */
+  /** Hat sich schon einmal angemeldet */
   linked: boolean;
+  /** Auth-ID des Logins, für das Protokoll */
+  userId: string | null;
+  isAdmin: boolean;
 }
 
 export interface PrivateData {
   info: Record<string, PlayerPrivate>;
   accounts: Record<string, Account>;
+}
+
+export interface Invite {
+  id: string;
+  playerId: string;
+  createdAt: number;
+  expiresAt: number;
+  usedAt: number | null;
+  revokedAt: number | null;
+}
+
+/** Ein Eintrag im Admin-Protokoll: neu eingetragen, gelöscht oder geändert */
+export interface Activity {
+  id: string;
+  at: number;
+  /** Login, der es getan hat (Auth-ID); per Admin-Zuordnung auf einen Spieler abbildbar */
+  userId: string | null;
+  action: 'insert' | 'delete' | 'update';
+  table: string;
+  row: Record<string, unknown> | null;
+  before: Record<string, unknown> | null;
 }
 
 export interface Data {

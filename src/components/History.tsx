@@ -5,7 +5,8 @@ import type { GameEvent, Pause, Round } from '../domain/types';
 import { LineChart } from './LineChart';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
 
-export function History() {
+/** Verlauf aller Pausen. Mit `admin` lassen sich vergangene Pausen korrigieren (nur im Admin-Panel). */
+export function History({ admin = false }: { admin?: boolean }) {
   const { data, name } = useApp();
   const list = [...data.pauses].sort((a, b) => b.startedAt - a.startedAt);
   const [open, setOpen] = useState<string | null>(list[0]?.id ?? null);
@@ -20,7 +21,7 @@ export function History() {
 
   return (
     <section className="stack">
-      <h2>Verlauf</h2>
+      {!admin && <h2>Verlauf</h2>}
       <div className="plist">
         {list.map((pa) => {
           const b = balances(pa);
@@ -37,7 +38,7 @@ export function History() {
                 </span>
                 <span>{k ? <span className="tag gold"><CrownIcon /> {name(k)} {b[k]}</span> : <span className="tag">kein König</span>}</span>
               </button>
-              {isOpen && <PauseDetail key={pa.id} pa={pa} />}
+              {isOpen && <PauseDetail key={pa.id} pa={pa} admin={admin} />}
             </Fragment>
           );
         })}
@@ -46,8 +47,8 @@ export function History() {
   );
 }
 
-function PauseDetail({ pa }: { pa: Pause }) {
-  const { canWrite, backend, run, toast, busy } = useApp();
+function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
+  const { backend, run, toast, busy } = useApp();
   const [edit, setEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const n = pa.rounds.length;
@@ -84,7 +85,7 @@ function PauseDetail({ pa }: { pa: Pause }) {
         xLabels={['Start', ...pa.rounds.map((r) => `R${r.number}`)]}
         series={Object.keys(balances(pa)).map((p) => ({ id: p, values: Array.from({ length: n + 1 }, (_, k) => balances(pa, k)[p] ?? 0) }))}
       />
-      {canWrite && (
+      {admin && (
         <div className="row between">
           <button className="btn small" aria-pressed={edit} onClick={() => { setEdit(!edit); setConfirmDelete(false); }}>
             {edit ? 'Fertig' : 'Korrigieren'}

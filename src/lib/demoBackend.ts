@@ -1,17 +1,18 @@
 import { DEMO_PEOPLE, makeDemo } from '../domain/demo';
 import { isFinished } from '../domain/game';
-import type { Data, PlayerPrivate, PrivateData } from '../domain/types';
+import type { Activity, Data, Invite, PlayerPrivate, PrivateData } from '../domain/types';
 import { AppError, type Backend } from './backend';
 
 /** Speichert nur im Arbeitsspeicher. Für lokales Ausprobieren ohne Supabase-Projekt. */
 export function createDemoBackend(): Backend {
   let data: Data = makeDemo();
-  // Echte Namen der Beispiel-Spieler. Keine Logins, darum sind alle Profile bearbeitbar.
+  // Echte Namen der Beispiel-Spieler. Im Demo-Modus bist du Admin und Spieler "Countess" (demo-0).
   const emptyInfo = (): PlayerPrivate => ({ firstName: null, lastName: null, avatarPath: null, avatarUrl: null });
   const priv: PrivateData = {
     info: Object.fromEntries(DEMO_PEOPLE.map((p, i) => [`demo-${i}`, { ...emptyInfo(), firstName: p.first, lastName: p.last }])),
-    accounts: {},
+    accounts: { 'demo-0': { email: 'demo@example.com', linked: true, userId: 'demo-user', isAdmin: true } },
   };
+  const invites: (Invite & { token: string })[] = [];
   const listeners = new Set<() => void>();
   const changed = () => listeners.forEach((l) => l());
   const id = () => Math.random().toString(36).slice(2, 10);
@@ -24,7 +25,7 @@ export function createDemoBackend(): Backend {
   return {
     kind: 'demo',
     auth: {
-      current: async () => ({ email: 'demo', playerId: 'demo' }),
+      current: async () => ({ email: 'demo@example.com', playerId: 'demo-0', isAdmin: true }),
       onChange: () => () => {},
       signIn: async () => {},
       verifyCode: async () => {},
@@ -91,15 +92,11 @@ export function createDemoBackend(): Backend {
 
     async addPlayer(name) {
       if (data.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) throw new AppError('Diesen Namen gibt es schon.');
-      data.players.push({ id: id(), name, hidden: false, createdAt: Date.now() });
+      const pid = id();
+      data.players.push({ id: pid, name, hidden: false, createdAt: Date.now() });
       changed();
+      return pid;
     },
-    async setHidden(pid, hidden) {
-      const p = data.players.find((x) => x.id === pid);
-      if (p) p.hidden = hidden;
-      changed();
-    },
-    async setEmail() {},
 
     loadPrivate: async () => structuredClone(priv),
     async saveProfile(pid, p) {
@@ -117,5 +114,70 @@ export function createDemoBackend(): Backend {
       priv.info[pid] = { ...(priv.info[pid] ?? emptyInfo()), avatarPath: null, avatarUrl: null };
       changed();
     },
+
+    async inviteInfo(token) {
+      const i = invites.find((x) => x.token === token);
+      if (!i) return { playerName: null, valid: false, reason: 'Diesen Einladungslink gibt es nicht.' };
+      if (i.usedAt || i.revokedAt || i.expiresAt < Date.now()) return { playerName: null, valid: false, reason: 'Dieser Einladungslink gilt nicht mehr.' };
+      return { playerName: data.players.find((p) => p.id === i.playerId)?.name ?? null, valid: true, reason: null };
+    },
+    async redeemInvite(token, p) {
+      const i = invites.find((x) => x.token === token && !x.usedAt && !x.revokedAt);
+      if (!i) throw new AppError('Dieser Einladungslink gilt nicht mehr.');
+      const pl = data.players.find((x) => x.id === i.playerId);
+      if (pl) pl.name = p.name;
+      priv.info[i.playerId] = { ...(priv.info[i.playerId] ?? emptyInfo()), firstName: p.firstName, lastName: p.lastName };
+      i.usedAt = Date.now();
+      changed();
+    },
+
+    async setHidden(pid, hidden) {
+      const p = data.players.find((x) => x.id === pid);
+      if (p) p.hidden = hidden;
+      changed();
+    },
+    async createInvite(playerId) {
+      if (priv.accounts[playerId]?.linked) throw new AppError('Dieser Spieler hat schon einen Login.');
+      for (const i of invites) if (i.playerId === playerId && !i.usedAt && !i.revokedAt) i.revokedAt = Date.now();
+      const token = crypto.randomUUID().replace(/-/g, '');
+      invites.unshift({ id: id(), token, playerId, createdAt: Date.now(), expiresAt: Date.now() + 7 * 864e5, usedAt: null, revokedAt: null });
+      changed();
+      return token;
+    },
+    listInvites: async () => invites.map(({ token: _token, ...i }) => ({ ...i })),
+    async revokeInvite(inviteId) {
+      const i = invites.find((x) => x.id === inviteId);
+      if (i) i.revokedAt = Date.now();
+      changed();
+    },
+    async unlinkAccount(playerId) {
+      if (priv.accounts[playerId]?.isAdmin) throw new AppError('Den Login des Admins kann man nicht trennen.');
+      delete priv.accounts[playerId];
+      changed();
+    },
+    async mergePlayers(from, into) {
+      if (from === into) throw new AppError('Bitte zwei verschiedene Spieler wählen.');
+      for (const pa of data.pauses)
+        for (const r of pa.rounds) {
+          if (r.participants.includes(from) && r.participants.includes(into))
+            throw new AppError(`Beide waren in derselben Runde (z. B. Runde ${r.number}). Das lässt sich nicht zusammenführen.`);
+        }
+      const swap = (x: string | null) => (x === from ? into : x);
+      for (const pa of data.pauses) {
+        pa.participants = [...new Set(pa.participants.map((x) => swap(x)!))];
+        for (const r of pa.rounds) {
+          r.participants = r.participants.map((x) => swap(x)!);
+          for (const e of r.events) Object.assign(e, { p: swap(e.p), loser: swap(e.loser), server: swap(e.server) });
+        }
+      }
+      data.players = data.players.filter((p) => p.id !== from);
+      delete priv.info[from];
+      changed();
+    },
+    loadActivity: async (limit) =>
+      data.pauses.flatMap((pa) => pa.rounds.flatMap((r) => r.events.map((e): Activity => ({
+        id: e.id, at: e.t, userId: 'demo-user', action: 'insert', table: 'events',
+        row: { type: e.type, player_id: e.p, loser_id: e.loser, pot: e.pot, round_id: r.id }, before: null,
+      })))).sort((a, b) => b.at - a.at).slice(0, limit),
   };
 }

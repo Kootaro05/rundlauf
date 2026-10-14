@@ -15,6 +15,11 @@ export interface AppCtx {
   addEvent: (roundId: string, seq: number, ev: NewEvent, ok?: string) => Promise<boolean>;
   /** Nimmt den letzten Eintrag der Pause zurück, zuerst wartende Offline-Einträge. */
   undo: (pa: Pause) => void;
+  /** Trägt den zuletzt zurückgenommenen Eintrag wieder ein (nur auf diesem Gerät) */
+  redo: () => void;
+  /** Was "Wiederholen" eintragen würde, sonst null */
+  redoNext: NewEvent | null;
+  isAdmin: boolean;
   /** Spitzname, für alle sichtbar */
   name: (id: string) => string;
   color: (id: string) => string;

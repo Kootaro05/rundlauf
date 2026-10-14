@@ -106,7 +106,7 @@ function Tile({ label, big, sub }: { label: string; big: number; sub: string }) 
 }
 
 function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDone: () => void }) {
-  const { backend, run, busy, priv, refreshPrivate, name, session, toast, color } = useApp();
+  const { backend, run, busy, priv, refreshPrivate, name, session, toast, color, isAdmin } = useApp();
   const [source, setSource] = useState<HTMLCanvasElement | null>(null);
   const info = priv.info[p];
   const account = priv.accounts[p];
@@ -114,18 +114,15 @@ function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDo
   const [nick, setNick] = useState(name(p));
   const [first, setFirst] = useState(info?.firstName ?? '');
   const [last, setLast] = useState(info?.lastName ?? '');
-  const [email, setEmail] = useState(account?.email ?? '');
   // Liefert den gewählten Bildausschnitt, solange ein neues Bild im Zuschnitt-Rahmen liegt
   const cropRef = useRef<(() => Promise<Blob>) | null>(null);
 
-  // Speichern übernimmt Namen, E-Mail und den gewählten Bildausschnitt in einem Schritt
+  // Speichern übernimmt Namen und den gewählten Bildausschnitt in einem Schritt
   const save = async () => {
     const n = nick.trim().slice(0, 24);
     if (!n) return toast('Der Spitzname darf nicht leer sein.');
     const ok = await run(async () => {
       await backend.saveProfile(p, { name: n, firstName: first.trim() || null, lastName: last.trim() || null });
-      // Die Login-E-Mail lässt sich nur ändern, solange sich der Spieler noch nie angemeldet hat
-      if (!account?.linked && email.trim() !== (account?.email ?? '')) await backend.setEmail(p, email.trim() || null);
       if (source && cropRef.current) await backend.uploadAvatar(p, await cropRef.current(), info?.avatarPath ?? null);
     }, 'Profil gespeichert');
     await refreshPrivate();
@@ -148,12 +145,8 @@ function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDo
         <label>Spitzname<input id="pf-nick" type="text" maxLength={24} value={nick} onChange={(e) => setNick(e.target.value)} /></label>
         <label>Vorname<input id="pf-first" type="text" maxLength={40} value={first} onChange={(e) => setFirst(e.target.value)} /></label>
         <label>Nachname<input id="pf-last" type="text" maxLength={40} value={last} onChange={(e) => setLast(e.target.value)} /></label>
-        {backend.kind === 'supabase' && (account?.linked ? (
-          own && <p className="sub">Angemeldet mit {account.email}</p>
-        ) : (
-          <label>Login-E-Mail<input id="pf-mail" type="email" placeholder="optional" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-        ))}
       </div>
+      {own && account?.email && <p className="sub">Angemeldet mit {account.email}</p>}
       <p className="sub">Den Spitznamen sieht jeder. Vor- und Nachname und das Bild sehen nur angemeldete Spieler.</p>
 
       <div className="stack">
@@ -175,8 +168,8 @@ function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDo
         </div>
       </div>
 
-      <div className="stack">
-        <h3>Spielerauswahl</h3>
+      {isAdmin && <div className="stack">
+        <h3>Spielerauswahl (Admin)</h3>
         <div className="row">
           <button type="button" className="btn ghost" disabled={busy}
             onClick={() => void run(() => backend.setHidden(p, !hidden), hidden ? 'Wieder in der Spielerauswahl' : 'Aus der Spielerauswahl ausgeblendet')}>
@@ -184,7 +177,7 @@ function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDo
           </button>
           <span className="sub">Ausgeblendete Spieler stehen nicht mehr in der Auswahl für neue Runden. Ihre Statistik bleibt.</span>
         </div>
-      </div>
+      </div>}
 
       <div className="row">
         <button className="btn primary" disabled={busy}>{busy ? 'Speichere …' : 'Speichern'}</button>

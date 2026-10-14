@@ -51,7 +51,7 @@ function PlayerPicker({ sel, toggle, add }: ReturnType<typeof useSelection>) {
   const submit = async () => {
     const n = newName.trim().slice(0, 24);
     if (!n) return;
-    if (await run(() => backend.addPlayer(n, null), `${n} hinzugefügt`)) {
+    if (await run(async () => { await backend.addPlayer(n); }, `${n} hinzugefügt`)) {
       setPending(n);
       setNewName('');
     }
@@ -106,7 +106,7 @@ function StartPause() {
 }
 
 function Standings({ pa }: { pa: Pause }) {
-  const { name, canWrite, undo, busy } = useApp();
+  const { name, canWrite, undo, redo, redoNext, busy } = useApp();
   const b = balances(pa);
   const king = kingOf(b);
   const order = Object.keys(b).sort((x, y) => b[y] - b[x] || name(x).localeCompare(name(y), 'de'));
@@ -118,10 +118,19 @@ function Standings({ pa }: { pa: Pause }) {
     <section className="stack">
       <div className="row between">
         <h3>Kronenstand · Pause seit {fmtTime(pa.startedAt)}</h3>
-        {canWrite && undoLabel && (
-          <button className="btn small ghost" disabled={busy} title="Letzten Eintrag zurücknehmen" onClick={() => undo(pa)}>
-            ↶ {undoLabel}
-          </button>
+        {canWrite && (undoLabel || redoNext) && (
+          <span className="row undo-redo">
+            {undoLabel && (
+              <button className="btn small ghost" disabled={busy} title="Letzten Eintrag zurücknehmen" onClick={() => undo(pa)}>
+                ↶ {undoLabel}
+              </button>
+            )}
+            {redoNext && (
+              <button className="btn small ghost" disabled={busy} title="Zurückgenommenen Eintrag wieder eintragen" onClick={redo}>
+                ↷ {describeShort(redoNext, name)}
+              </button>
+            )}
+          </span>
         )}
       </div>
       <div className="standings">
@@ -138,7 +147,7 @@ function Standings({ pa }: { pa: Pause }) {
   );
 }
 
-function describeShort(e: Round['events'][number], name: (id: string) => string) {
+function describeShort(e: Pick<Round['events'][number], 'type' | 'p'>, name: (id: string) => string) {
   switch (e.type) {
     case 'schwimmer': return `${name(e.p)}: Schwimmer`;
     case 'crown': return `${name(e.p)}: Krone`;
