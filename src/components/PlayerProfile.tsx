@@ -2,7 +2,8 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { computeElo, ELO_START } from '../domain/elo';
 import { fmtDate } from '../domain/periods';
 import { computeDuels, computeStats, longestFinalStreak, pct } from '../domain/stats';
-import { prepareAvatar } from '../lib/image';
+import { loadForCrop } from '../lib/image';
+import { AvatarCropper } from './AvatarCropper';
 import { LineChart } from './LineChart';
 import { plural, useApp } from './ui';
 
@@ -111,7 +112,8 @@ function Tile({ label, big, sub }: { label: string; big: number; sub: string }) 
 }
 
 function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
-  const { backend, run, busy, priv, refreshPrivate, name, session, toast } = useApp();
+  const { backend, run, busy, priv, refreshPrivate, name, session, toast, color } = useApp();
+  const [source, setSource] = useState<HTMLCanvasElement | null>(null);
   const info = priv.info[p];
   const account = priv.accounts[p];
   const own = p === session?.playerId;
@@ -133,18 +135,20 @@ function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
     if (ok) onDone();
   };
 
-  const upload = async (file: File | undefined) => {
+  // Erst zuschneiden, dann hochladen
+  const pick = async (file: File | undefined) => {
     if (!file) return;
-    setUploading(true);
     try {
-      const image = await prepareAvatar(file);
-      await run(() => backend.uploadAvatar(p, image, info?.avatarPath ?? null), 'Bild gespeichert');
-      await refreshPrivate();
+      setSource(await loadForCrop(file));
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e));
-    } finally {
-      setUploading(false);
     }
+  };
+  const upload = async (image: Blob) => {
+    setUploading(true);
+    if (await run(() => backend.uploadAvatar(p, image, info?.avatarPath ?? null), 'Bild gespeichert')) setSource(null);
+    await refreshPrivate();
+    setUploading(false);
   };
 
   return (
@@ -164,20 +168,24 @@ function ProfileEditor({ p, onDone }: { p: string; onDone: () => void }) {
 
       <div className="stack">
         <h3>Profilbild</h3>
-        <p className="sub">Am besten ein Bild mit durchsichtigem Hintergrund (PNG oder WebP), dann steht die Figur frei im Profil. Ein durchsichtiger Rand wird automatisch abgeschnitten.</p>
-        <div className="row">
-          <label className="btn">
-            {uploading ? 'Lade hoch …' : info?.avatarPath ? 'Anderes Bild wählen' : 'Bild wählen'}
-            <input id="pf-img" type="file" accept="image/png,image/webp,image/jpeg" hidden disabled={uploading || busy}
-              onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
-          </label>
-          {info?.avatarPath && (
-            <button type="button" className="btn ghost" disabled={busy || uploading}
-              onClick={() => void run(() => backend.removeAvatar(p, info.avatarPath!), 'Bild entfernt').then(refreshPrivate)}>
-              Bild entfernen
-            </button>
-          )}
-        </div>
+        <p className="sub">Am besten ein Bild mit durchsichtigem Hintergrund (PNG oder WebP), dann steht die Figur frei im Profil. Danach wählst du den Ausschnitt; alle Bilder haben dasselbe Hochformat.</p>
+        {source ? (
+          <AvatarCropper source={source} color={color(p)} busy={busy || uploading} onCancel={() => setSource(null)} onDone={(img) => void upload(img)} />
+        ) : (
+          <div className="row">
+            <label className="btn">
+              {uploading ? 'Lade hoch …' : info?.avatarPath ? 'Anderes Bild wählen' : 'Bild wählen'}
+              <input id="pf-img" type="file" accept="image/png,image/webp,image/jpeg" hidden disabled={uploading || busy}
+                onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+            {info?.avatarPath && (
+              <button type="button" className="btn ghost" disabled={busy || uploading}
+                onClick={() => void run(() => backend.removeAvatar(p, info.avatarPath!), 'Bild entfernt').then(refreshPrivate)}>
+                Bild entfernen
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="row">

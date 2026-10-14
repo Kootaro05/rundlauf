@@ -29,7 +29,8 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
 - **Spieler:** Liste mit Profilbildern. Ein Klick (hier oder auf einen Namen in der Tabelle) öffnet die Profilseite
   als eigene Unterseite (`#/spieler/<id>`): Kopf im E-Sport-Look mit freigestelltem Bild, ELO, Statistik, Rivalen.
   Jeder pflegt sein eigenes Profil: Spitzname, Vor- und Nachname, Bild. Spieler, die sich noch nie angemeldet haben,
-  darf jedes Mitglied bearbeiten. Bilder werden auf dem Gerät zugeschnitten (durchsichtiger Rand weg) und auf 512 px verkleinert.
+  darf jedes Mitglied bearbeiten. Beim Hochladen wählt man den Ausschnitt selbst (verschieben, zoomen mit zwei Fingern,
+  Regler oder Mausrad). Alle Bilder haben dasselbe Hochformat 4:5 (512 × 640 px); ein durchsichtiger Rand wird vorher entfernt.
 - **Verlauf:** Jede Pause mit Kronen-Diagramm und allen Einträgen. Unter *Korrigieren* lassen sich Einträge und Runden
   löschen, Finalsieger tauschen und Aufschläger ändern. Vorher wird die ganze Pause nachgespielt; würde eine Änderung
   spätere Einträge ungültig machen (z. B. eine Krone, die es ohne den gelöschten Sieg nicht gäbe), wird sie abgelehnt.

@@ -219,14 +219,34 @@ button.prow:hover { background: var(--surface-2) }
 /* Oben Luft lassen und etwas nach links rücken, damit Bild und Platz nebeneinander Platz haben */
 /* Das Bild füllt einen Rahmen mit festen Maßen (statt max-height in einem Flex-Container): sonst zeigt
    Safari in der installierten App ein zwischengespeichertes Bild beim erneuten Öffnen in Originalgröße */
-.hero-art { grid-area: kopf; justify-self: end; align-self: end; position: relative; width: 50%; height: 244px; margin-right: 40px; min-width: 0 }
+/* Alle Bilder haben 4:5 (siehe lib/image.ts), der Rahmen auch: so stehen sie überall gleich groß */
+.hero-art { grid-area: kopf; justify-self: end; align-self: end; position: relative; height: 244px; aspect-ratio: 4 / 5; margin-right: 40px }
 .hero-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; filter: drop-shadow(0 12px 22px rgba(0,0,0,.5)) }
 .hero-art .hero-ghost { position: absolute; right: 0; bottom: 0 }
 .hero-ghost { font-family: var(--f-display); font-weight: 800; font-size: 150px; line-height: .8; text-transform: uppercase; opacity: .18; padding-bottom: 12px }
+/* Zuschneiden: Rahmen im Profilbild-Format mit Hintergrund in der Spielerfarbe und Drittel-Hilfslinien */
+.cropper-frame {
+  --pc: var(--c0);
+  position: relative; width: min(100%, 300px); aspect-ratio: 4 / 5; overflow: hidden; border-radius: 12px;
+  touch-action: none; cursor: grab; user-select: none;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,.05) 0 2px, transparent 2px 16px),
+    linear-gradient(125deg, color-mix(in srgb, var(--pc) 80%, #000), color-mix(in srgb, var(--pc) 35%, #04070b));
+}
+.cropper-frame:active { cursor: grabbing }
+.cropper-frame img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none }
+.cropper-frame::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to right, transparent calc(33.33% - .5px), rgba(255,255,255,.25) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.66% - .5px), rgba(255,255,255,.25) calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - .5px), rgba(255,255,255,.25) calc(33.33% - .5px) calc(33.33% + .5px), transparent calc(33.33% + .5px) calc(66.66% - .5px), rgba(255,255,255,.25) calc(66.66% - .5px) calc(66.66% + .5px), transparent calc(66.66% + .5px));
+}
+.cropper-zoom { width: min(100%, 300px); gap: 10px }
+.cropper-zoom input { flex: 1; accent-color: var(--ball) }
 .fin-art { height: 120px; width: 100%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 6px 12px rgba(0,0,0,.35)) }
 @media (max-width: 560px) {
   .hero { min-height: 230px }
-  .hero-art { width: 56%; height: 214px; margin-right: 20px }
+  .hero-art { height: 214px; margin-right: 20px }
   .hero-rank { font-size: 72px }
 }
 

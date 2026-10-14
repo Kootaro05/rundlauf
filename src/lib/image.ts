@@ -1,31 +1,45 @@
-const MAX = 512;
+/** Einheitliches Format aller Profilbilder: Hochformat 4:5 */
+export const AVATAR_ASPECT = 4 / 5;
+const OUT_W = 512;
+const OUT_H = Math.round(OUT_W / AVATAR_ASPECT);
+const SOURCE_MAX = 1600;
 
 /**
- * Bereitet ein Profilbild zum Hochladen vor: transparenten Rand abschneiden (bei freigestellten Bildern),
- * auf höchstens 512 px verkleinern, als WebP speichern (Safari kann das teils nicht, dann PNG).
- * Die Transparenz bleibt erhalten.
+ * Lädt ein Bild zum Zuschneiden: durchsichtigen Rand abschneiden (bei freigestellten Bildern)
+ * und auf eine handliche Größe bringen. Die Transparenz bleibt erhalten.
  */
-export async function prepareAvatar(file: File): Promise<Blob> {
+export async function loadForCrop(file: File): Promise<HTMLCanvasElement> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
   } catch {
     throw new Error('Dieses Bildformat geht leider nicht. Nimm PNG, WebP oder JPG.');
   }
-
-  // Zuerst auf eine Arbeitsgröße bringen, dann den durchsichtigen Rand suchen
-  const work = fit(bitmap.width, bitmap.height, 1024);
+  const work = fit(bitmap.width, bitmap.height, SOURCE_MAX);
   const a = canvas(work.w, work.h);
   a.ctx.drawImage(bitmap, 0, 0, work.w, work.h);
   const box = opaqueBox(a.ctx, work.w, work.h);
+  const b = canvas(box.w, box.h);
+  b.ctx.drawImage(a.el, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+  return b.el;
+}
 
-  const out = fit(box.w, box.h, MAX);
-  const b = canvas(out.w, out.h);
-  b.ctx.drawImage(a.el, box.x, box.y, box.w, box.h, 0, 0, out.w, out.h);
+/** Lage des Bildes im Zuschnitt-Rahmen, in Pixeln des Rahmens (Breite frameW, Höhe frameW / AVATAR_ASPECT) */
+export interface Crop {
+  x: number;
+  y: number;
+  scale: number;
+}
 
-  const webp = await toBlob(b.el, 'image/webp', 0.9);
+/** Rendert den gewählten Ausschnitt als 512 × 640 px, WebP (Safari teils nur PNG). */
+export async function exportCrop(source: HTMLCanvasElement, crop: Crop, frameW: number): Promise<Blob> {
+  const k = OUT_W / frameW;
+  const out = canvas(OUT_W, OUT_H);
+  out.ctx.imageSmoothingQuality = 'high';
+  out.ctx.drawImage(source, crop.x * k, crop.y * k, source.width * crop.scale * k, source.height * crop.scale * k);
+  const webp = await toBlob(out.el, 'image/webp', 0.9);
   if (webp?.type === 'image/webp') return webp;
-  const png = await toBlob(b.el, 'image/png');
+  const png = await toBlob(out.el, 'image/png');
   if (!png) throw new Error('Das Bild konnte nicht verarbeitet werden.');
   return png;
 }
