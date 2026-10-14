@@ -85,8 +85,16 @@ export default function App() {
       <header className="top">
         <div className="wrap">
           <div className="brand">
-            <h1>Rundlauf-Analytics<span className="ball" aria-hidden="true" /></h1>
-            <p>Schwimmer, Kronen, Pot und Finale. Jede Pause startet bei null.</p>
+            <h1>
+              <span className="t1">
+                Rundlauf
+                <svg className="arc" viewBox="0 0 56 64" aria-hidden="true">
+                  <path d="M4 60 Q 12 2 46 14" />
+                  <circle cx="46" cy="14" r="5.5" />
+                </svg>
+              </span>
+              <span className="t2">Analytics</span>
+            </h1>
           </div>
           <div className="topright">
             {pa && (
