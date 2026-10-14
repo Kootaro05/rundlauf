@@ -108,3 +108,49 @@ export function currentRound(pa: Pause | null): Round | null {
 }
 
 export const nextSeq = (r: Round) => (r.events.at(-1)?.seq ?? 0) + 1;
+
+type EventInput = Pick<GameEvent, 'type' | 'p'> & Partial<Pick<GameEvent, 'loser' | 'server' | 'pot'>>;
+
+/**
+ * Prüft, ob ein Eintrag in der aktuellen Lage der Runde erlaubt ist.
+ * Dieselben Regeln prüft die Datenbank beim Speichern (supabase/migrations/0002_regeln.sql).
+ */
+export function checkEvent(pa: Pause, r: Round, e: EventInput): string | null {
+  const i = roundInfo(r);
+  if (i.final) return 'Diese Runde ist schon entschieden.';
+  if (!i.active.includes(e.p)) return 'Dieser Spieler ist nicht mehr in der Runde.';
+  if (e.type !== 'final' && i.active.length <= 2) return 'Im Finale wird nur noch der Sieger eingetragen.';
+  if (e.type === 'schwimmer' && i.schwimmer) return 'Der Schwimmer ist in dieser Runde schon vergeben.';
+  if ((e.type === 'crown' || e.type === 'out') && !i.schwimmer) return 'Der erste Fehler einer Runde gibt den Schwimmer.';
+  if (e.type === 'crown') {
+    const c = crownCheck(pa, r, e.p);
+    if (!c.ok) return c.why;
+  }
+  if (e.type === 'final') {
+    if (i.active.length !== 2) return 'Das Finale gibt es erst, wenn nur noch zwei drin sind.';
+    if (!e.loser || e.loser === e.p || !i.active.includes(e.loser)) return 'Im Finale spielen die beiden Letzten gegeneinander.';
+    if (e.server && !i.active.includes(e.server)) return 'Aufschlagen kann nur einer der beiden Finalisten.';
+    if (e.pot !== i.pot) return `Der Pot stimmt nicht, erwartet sind ${i.pot} Kronen.`;
+  }
+  return null;
+}
+
+/**
+ * Spielt eine Pause Eintrag für Eintrag nach und prüft jeden gegen die Regeln.
+ * Gibt den ersten Regelverstoß zurück oder null. Für Korrekturen im Verlauf:
+ * Ein gelöschter Sieg kann z. B. eine später gesetzte Krone ungültig machen.
+ */
+export function validatePause(pa: Pause): string | null {
+  const replay: Pause = { ...pa, rounds: [] };
+  for (const [idx, r] of pa.rounds.entries()) {
+    const cur: Round = { ...r, events: [] };
+    replay.rounds.push(cur);
+    for (const e of r.events) {
+      const err = checkEvent(replay, cur, e);
+      if (err) return `Runde ${idx + 1}: ${err}`;
+      cur.events.push(e);
+    }
+    if (!isFinished(cur) && (pa.endedAt || idx < pa.rounds.length - 1)) return `Runde ${idx + 1} hätte kein Finale mehr.`;
+  }
+  return null;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balances, crownCheck, currentRound, faultOutcome, kingOf, roundInfo, serveRule } from './game';
+import { balances, crownCheck, currentRound, faultOutcome, kingOf, roundInfo, serveRule, validatePause } from './game';
 import { computeStats, recordFor } from './stats';
 import { semester } from './periods';
 import type { EventType, Pause, Round } from './types';
@@ -89,6 +89,32 @@ describe('Finale', () => {
   it('eine Runde mit Finale ist abgeschlossen', () => {
     const pa = pause(['a', 'b'], won(['a', 'b'], 'a', 'b'));
     expect(currentRound(pa)).toBeNull();
+  });
+});
+
+describe('Nachspielen einer Pause (Korrekturen)', () => {
+  it('eine regelkonforme Pause ist gültig', () => {
+    const pa = pause(['a', 'b', 'c'],
+      round(['a', 'b', 'c'], ['schwimmer', 'c'], ['out', 'c'], ['final', 'a', { loser: 'b', pot: 1 }]),
+      round(['a', 'b', 'c'], ['schwimmer', 'b'], ['crown', 'a'], ['out', 'c'], ['final', 'b', { loser: 'a', pot: 2 }]));
+    expect(validatePause(pa)).toBeNull();
+  });
+
+  it('löscht man den Sieg, wird die später damit gesetzte Krone ungültig', () => {
+    const pa = pause(['a', 'b', 'c'],
+      round(['a', 'b', 'c'], ['schwimmer', 'c'], ['out', 'c'], ['final', 'a', { loser: 'b', pot: 1 }]),
+      round(['a', 'b', 'c'], ['schwimmer', 'b'], ['crown', 'a'], ['out', 'c'], ['final', 'b', { loser: 'a', pot: 2 }]));
+    const ohneErsteRunde = { ...pa, rounds: pa.rounds.slice(1) };
+    expect(validatePause(ohneErsteRunde)).toMatch(/Runde 1: Keine Kronen/);
+  });
+
+  it('Raus vor dem Schwimmer und falscher Pot werden erkannt', () => {
+    expect(validatePause(pause(['a', 'b', 'c'], round(['a', 'b', 'c'], ['out', 'a'])))).toMatch(/Schwimmer/);
+    expect(validatePause(pause(['a', 'b'], round(['a', 'b'], ['final', 'a', { loser: 'b', pot: 3 }])))).toMatch(/Pot/);
+  });
+
+  it('in einer beendeten Pause braucht jede Runde ein Finale', () => {
+    expect(validatePause(pause(['a', 'b', 'c'], round(['a', 'b', 'c'], ['schwimmer', 'a'])))).toMatch(/kein Finale/);
   });
 });
 
