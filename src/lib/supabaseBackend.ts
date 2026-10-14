@@ -152,6 +152,19 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       check(await sb.rpc('end_pause', { p_pause_id: pauseId }));
     },
 
+    async deleteEvent(eventId) {
+      check(await sb.from('events').delete().eq('id', eventId));
+    },
+    async updateFinal(eventId, patch) {
+      check(await sb.from('events').update({ player_id: patch.p, loser_id: patch.loser, server_id: patch.server }).eq('id', eventId));
+    },
+    async deleteRound(roundId) {
+      check(await sb.from('rounds').delete().eq('id', roundId));
+    },
+    async deletePause(pauseId) {
+      check(await sb.from('pauses').delete().eq('id', pauseId));
+    },
+
     async addPlayer(name, email) {
       check(await sb.rpc('add_player', { p_name: name, p_email: email }));
     },

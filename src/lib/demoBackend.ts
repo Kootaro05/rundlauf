@@ -65,6 +65,24 @@ export function createDemoBackend(): Backend {
       changed();
     },
 
+    async deleteEvent(eventId) {
+      for (const r of data.pauses.flatMap((p) => p.rounds)) r.events = r.events.filter((e) => e.id !== eventId);
+      changed();
+    },
+    async updateFinal(eventId, patch) {
+      const e = data.pauses.flatMap((p) => p.rounds).flatMap((r) => r.events).find((x) => x.id === eventId);
+      if (e) Object.assign(e, patch);
+      changed();
+    },
+    async deleteRound(roundId) {
+      for (const p of data.pauses) p.rounds = p.rounds.filter((r) => r.id !== roundId);
+      changed();
+    },
+    async deletePause(pauseId) {
+      data.pauses = data.pauses.filter((p) => p.id !== pauseId);
+      changed();
+    },
+
     async addPlayer(name) {
       if (data.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) throw new AppError('Diesen Namen gibt es schon.');
       data.players.push({ id: id(), name, hidden: false, createdAt: Date.now() });

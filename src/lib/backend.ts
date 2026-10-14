@@ -31,6 +31,12 @@ export interface Backend {
   undo(pause: Pause): Promise<void>;
   endPause(pauseId: string): Promise<void>;
 
+  // Korrekturen im Verlauf (vorher mit validatePause prüfen)
+  deleteEvent(eventId: string): Promise<void>;
+  updateFinal(eventId: string, patch: { p: string; loser: string; server: string | null }): Promise<void>;
+  deleteRound(roundId: string): Promise<void>;
+  deletePause(pauseId: string): Promise<void>;
+
   addPlayer(name: string, email: string | null): Promise<void>;
   updatePlayer(id: string, patch: { name?: string; hidden?: boolean }): Promise<void>;
   setEmail(id: string, email: string | null): Promise<void>;

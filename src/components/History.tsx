@@ -1,7 +1,8 @@
 import { Fragment, useState } from 'react';
-import { balances, isFinished, kingOf, roundInfo } from '../domain/game';
+import { balances, isFinished, kingOf, roundInfo, validatePause } from '../domain/game';
 import { fmtDate, fmtTime, fmtWeekday } from '../domain/periods';
-import type { GameEvent, Pause } from '../domain/types';
+import type { GameEvent, Pause, Round } from '../domain/types';
+import { LineChart } from './LineChart';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
 
 export function History() {
@@ -36,7 +37,7 @@ export function History() {
                 </span>
                 <span>{k ? <span className="tag gold"><CrownIcon /> {name(k)} {b[k]}</span> : <span className="tag">kein König</span>}</span>
               </button>
-              {isOpen && <PauseDetail pa={pa} />}
+              {isOpen && <PauseDetail key={pa.id} pa={pa} />}
             </Fragment>
           );
         })}
@@ -46,27 +47,100 @@ export function History() {
 }
 
 function PauseDetail({ pa }: { pa: Pause }) {
+  const { canWrite, backend, run, toast, busy } = useApp();
+  const [edit, setEdit] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const n = pa.rounds.length;
+
+  /** Prüft die Pause so, wie sie nach der Änderung aussähe, und speichert nur, wenn alle Regeln noch aufgehen. */
+  const change = (after: Pause, action: () => Promise<void>, ok: string) => {
+    const err = validatePause(after);
+    if (err) toast(`Geht nicht, danach wäre die Pause ungültig. ${err}`);
+    else void run(action, ok);
+  };
+  const withRounds = (rounds: Round[]): Pause => ({ ...pa, rounds });
+  const mapEvents = (r: Round, f: (e: GameEvent[]) => GameEvent[]) => withRounds(pa.rounds.map((x) => (x === r ? { ...x, events: f(x.events) } : x)));
+
+  const ops = {
+    deleteEvent: (r: Round, e: GameEvent) =>
+      change(mapEvents(r, (es) => es.filter((x) => x !== e)), () => backend.deleteEvent(e.id), 'Eintrag gelöscht'),
+    swapWinner: (r: Round, e: GameEvent) =>
+      change(
+        mapEvents(r, (es) => es.map((x) => (x === e ? { ...x, p: x.loser!, loser: x.p } : x))),
+        () => backend.updateFinal(e.id, { p: e.loser!, loser: e.p, server: e.server }),
+        'Sieger getauscht',
+      ),
+    setServer: (e: GameEvent, server: string) =>
+      void run(() => backend.updateFinal(e.id, { p: e.p, loser: e.loser!, server }), 'Aufschläger geändert'),
+    deleteRound: (r: Round) =>
+      change(withRounds(pa.rounds.filter((x) => x !== r)), () => backend.deleteRound(r.id), 'Runde gelöscht'),
+  };
+
   return (
     <div className="card">
-      <Chart pa={pa} />
+      <LineChart
+        title="Kronenstand nach jeder Runde"
+        ariaLabel="Kronenverlauf der Pause"
+        xLabels={['Start', ...pa.rounds.map((_, k) => `R${k + 1}`)]}
+        series={Object.keys(balances(pa)).map((p) => ({ id: p, values: Array.from({ length: n + 1 }, (_, k) => balances(pa, k)[p] ?? 0) }))}
+      />
+      {canWrite && (
+        <div className="row between">
+          <button className="btn small" aria-pressed={edit} onClick={() => { setEdit(!edit); setConfirmDelete(false); }}>
+            {edit ? 'Fertig' : 'Korrigieren'}
+          </button>
+          {edit && (confirmDelete ? (
+            <span className="row">
+              <span className="sub">Ganze Pause mit allen Runden löschen?</span>
+              <button className="btn danger small" disabled={busy} onClick={() => void run(() => backend.deletePause(pa.id), 'Pause gelöscht')}>Löschen</button>
+              <button className="btn small" onClick={() => setConfirmDelete(false)}>Nein</button>
+            </span>
+          ) : (
+            <button className="btn ghost small" onClick={() => setConfirmDelete(true)}>Pause löschen</button>
+          ))}
+        </div>
+      )}
+      {edit && <p className="sub">Jede Änderung wird gegen die Regeln geprüft. Ein gelöschter Sieg kann zum Beispiel eine später gesetzte Krone ungültig machen, dann geht die Änderung nicht.</p>}
       <div className="timeline">
-        {pa.rounds.length === 0 && <p className="sub">Noch keine Runde gespielt.</p>}
-        {pa.rounds.map((r) => {
+        {n === 0 && <p className="sub">Noch keine Runde gespielt.</p>}
+        {pa.rounds.map((r, idx) => {
           const i = roundInfo(r);
           return (
             <div key={r.id} className={`tround ${i.final ? 'won' : ''}`}>
-              <div className="row">
-                <b>Runde {r.number}</b>
-                <span className="sub">{r.participants.length} Spieler · Pot {i.pot}{i.final ? '' : ' · läuft'}</span>
+              <div className="row between">
+                <span className="row">
+                  <b>Runde {idx + 1}</b>
+                  <span className="sub">{r.participants.length} Spieler · Pot {i.pot}{i.final ? '' : ' · läuft'}</span>
+                </span>
+                {edit && <button className="btn ghost small" disabled={busy} onClick={() => ops.deleteRound(r)}>Runde löschen</button>}
               </div>
               {r.events.map((e) => (
-                <div className="ev" key={e.id}><time>{fmtTime(e.t)}</time><span><EventText e={e} /></span></div>
+                <div className="ev" key={e.id}>
+                  <time>{fmtTime(e.t)}</time>
+                  <span className="row between">
+                    <span><EventText e={e} /></span>
+                    {edit && (e.type === 'final'
+                      ? <FinalEdit e={e} busy={busy} onSwap={() => ops.swapWinner(r, e)} onServer={(s) => ops.setServer(e, s)} />
+                      : <button className="btn ghost small" disabled={busy} aria-label="Eintrag löschen" onClick={() => ops.deleteEvent(r, e)}>✕</button>)}
+                  </span>
+                </div>
               ))}
             </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+function FinalEdit({ e, busy, onSwap, onServer }: { e: GameEvent; busy: boolean; onSwap: () => void; onServer: (p: string) => void }) {
+  const { name } = useApp();
+  const other = e.server === e.p ? e.loser! : e.p;
+  return (
+    <span className="row">
+      <button className="btn ghost small" disabled={busy} onClick={onSwap}>Sieger tauschen</button>
+      <button className="btn ghost small" disabled={busy} onClick={() => onServer(other)}>Aufschlag an {name(other)}</button>
+    </span>
   );
 }
 
@@ -84,58 +158,4 @@ function EventText({ e }: { e: GameEvent }) {
         </>
       );
   }
-}
-
-function Chart({ pa }: { pa: Pause }) {
-  const { name, color } = useApp();
-  const n = pa.rounds.length;
-  if (!n) return null;
-  const ps = Object.keys(balances(pa));
-  const snaps = Array.from({ length: n + 1 }, (_, k) => balances(pa, k));
-  const series = ps.map((p) => ({ p, v: snaps.map((s) => s[p] ?? 0) }));
-  const all = series.flatMap((s) => s.v);
-  const lo = Math.min(0, ...all);
-  const hi = Math.max(1, ...all);
-  const W = 640, H = 220, L = 30, R = 96, T = 12, B = 26;
-  const x = (k: number) => L + (k * (W - L - R)) / n;
-  const y = (v: number) => T + ((hi - v) * (H - T - B)) / (hi - lo);
-  const step = Math.max(1, Math.ceil((hi - lo) / 5));
-  const ticks: number[] = [];
-  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
-  const every = Math.ceil(n / 12);
-
-  // Endbeschriftungen nicht überlappen lassen
-  const ends = series.map((s) => ({ p: s.p, v: s.v[n], y: y(s.v[n]) })).sort((a, b) => a.y - b.y);
-  for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 13) ends[k].y = ends[k - 1].y + 13;
-
-  return (
-    <div className="chart">
-      <h3>Kronenstand nach jeder Runde</h3>
-      <svg viewBox={`0 0 ${W} ${H + Math.max(0, (ends.at(-1)?.y ?? 0) - (H - B))}`} role="img" aria-label="Kronenverlauf der Pause">
-        <g className="grid">
-          {ticks.map((v) => (
-            <Fragment key={v}>
-              <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} />
-              <text x={L - 6} y={y(v) + 4} textAnchor="end">{v}</text>
-            </Fragment>
-          ))}
-        </g>
-        {lo < 0 && <line className="zero" x1={L} x2={W - R} y1={y(0)} y2={y(0)} />}
-        {Array.from({ length: n + 1 }, (_, k) => k).filter((k) => k % every === 0 || k === n).map((k) => (
-          <text key={k} x={x(k)} y={H - 8} textAnchor="middle">{k === 0 ? 'Start' : `R${k}`}</text>
-        ))}
-        {series.map((s) => (
-          <Fragment key={s.p}>
-            <polyline fill="none" stroke={color(s.p)} strokeWidth={2.2} strokeLinejoin="round" points={s.v.map((v, k) => `${x(k)},${y(v)}`).join(' ')} />
-            <circle cx={x(n)} cy={y(s.v[n])} r={3.5} fill={color(s.p)} />
-          </Fragment>
-        ))}
-        {ends.map((e) => (
-          <text key={e.p} className="lbl" x={W - R + 8} y={e.y + 4} style={{ fill: color(e.p) }}>
-            {name(e.p).slice(0, 10)} {e.v}
-          </text>
-        ))}
-      </svg>
-    </div>
-  );
 }
