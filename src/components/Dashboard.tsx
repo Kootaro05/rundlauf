@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { computeElo, ELO_START, ratingAt, semesterElo } from '../domain/elo';
+import { computeElo, ELO_START, podium, ratingAt, semesterElo } from '../domain/elo';
 import { balances } from '../domain/game';
 import { PERIODS, fmtDate, type Granularity } from '../domain/periods';
 import { computeComebacks, computeDuels, computeStats, pausesIn, pct, recordFor, type Comeback, type PlayerStats } from '../domain/stats';
 import type { Pause } from '../domain/types';
 import { LineChart } from './LineChart';
-import { Dot, plural, useApp } from './ui';
+import { Dot, PodiumIcon, plural, useApp } from './ui';
 
 type Col = { k: string; label: string; v: (x: PlayerStats) => number; fmt?: (x: PlayerStats) => React.ReactNode };
 
@@ -30,6 +30,9 @@ export function Dashboard() {
   const label = PERIODS.find((x) => x.g === period)!.label;
   const maxAbs = Math.max(1, ...rows.map((x) => Math.abs(x.netto)));
   const periodStart = Math.min(...list.map((pa) => pa.startedAt));
+  // Die drei Besten: ELO (Krone, Medaillen vor dem Namen) und Semester-ELO (Sterne vor dem Wert)
+  const topAll = podium(eloAll.rating);
+  const topSem = podium(elo.rating);
   const eloNow = (p: string) => elo.rating[p] ?? ELO_START;
   const eloAllNow = (p: string) => eloAll.rating[p] ?? ELO_START;
   // Veränderung der Semester-ELO im gewählten Zeitraum (Tag, Woche, Semester)
@@ -49,10 +52,11 @@ export function Dashboard() {
     {
       k: 'eloSem', label: 'Semester-ELO', v: (x) => eloNow(x.p),
       fmt: (x) => (
-        <>
+        <span className="row nowrap" style={{ justifyContent: 'flex-end', gap: 4 }}>
+          <PodiumIcon place={topSem[x.p]} kind="semester" />
           {Math.round(eloNow(x.p))}
-          {period !== 'all' && <> <span className={eloDelta(x.p) >= 0 ? 'win' : 'loss'}>{signed(eloDelta(x.p))}</span></>}
-        </>
+          {period !== 'all' && <span className={eloDelta(x.p) >= 0 ? 'win' : 'loss'}>{signed(eloDelta(x.p))}</span>}
+        </span>
       ),
     },
     { k: 'avg', label: 'Ø / Pause', v: (x) => (x.pausen ? x.netto / x.pausen : 0), fmt: (x) => (x.pausen ? (x.netto / x.pausen).toFixed(1).replace('.', ',') : '–') },
@@ -143,10 +147,10 @@ export function Dashboard() {
                     <td>
                       {isMember ? (
                         <button className="linkbtn row nowrap" onClick={() => { openProfile(x.p); window.scrollTo({ top: 0 }); }}>
-                          <Dot p={x.p} />{name(x.p)}
+                          <Dot p={x.p} /><PodiumIcon place={topAll[x.p]} kind="elo" />{name(x.p)}
                         </button>
                       ) : (
-                        <span className="row nowrap"><Dot p={x.p} />{name(x.p)}</span>
+                        <span className="row nowrap"><Dot p={x.p} /><PodiumIcon place={topAll[x.p]} kind="elo" />{name(x.p)}</span>
                       )}
                     </td>
                     {cols.map((c) => <td key={c.k}>{c.fmt ? c.fmt(x) : c.v(x)}</td>)}

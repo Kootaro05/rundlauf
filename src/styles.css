@@ -3,6 +3,7 @@
   --bg: #edf2f5; --surface: #ffffff; --surface-2: #f5f8fa; --ink: #10212f; --muted: #596c7c; --line: #d3dee6;
   --table: #1b5687; --table-ink: #ffffff; --ball: #e0661a; --ball-ink: #ffffff;
   --gold: #a8790a; --gold-soft: #f8ecc4; --danger: #b8352a; --danger-soft: #fbe4e1; --ok: #25744a;
+  --silver: #7d8a96; --bronze: #a5612a;
   --c0: #1f6fb2; --c1: #d9661f; --c2: #2c8a57; --c3: #8250c4; --c4: #c2384a; --c5: #11878f; --c6: #a07a00; --c7: #c24f97;
   --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -14,6 +15,7 @@
     --bg: #0a141d; --surface: #112130; --surface-2: #0e1b27; --ink: #e4edf3; --muted: #91a5b5; --line: #22394b;
     --table: #1d5f96; --table-ink: #ffffff; --ball: #ff8a3d; --ball-ink: #1a0d03;
     --gold: #f0c24f; --gold-soft: #3a2f12; --danger: #ff7a6b; --danger-soft: #3b1c19; --ok: #62d08f;
+    --silver: #c9d1d9; --bronze: #d68a4c;
     --c0: #5aa8ec; --c1: #ff9a52; --c2: #5fcf8c; --c3: #b58cf2; --c4: #ff7186; --c5: #46c9d1; --c6: #e7c04a; --c7: #f286c6;
     color-scheme: dark;
   }
@@ -195,6 +197,13 @@ main { overflow-x: clip }
     repeating-linear-gradient(115deg, rgba(255,255,255,.06) 0 1px, transparent 1px 7px),
     linear-gradient(135deg, color-mix(in srgb, var(--pc) 85%, #000), color-mix(in srgb, var(--pc) 35%, #04070b));
 }
+/* Podium: Rahmen ums Profilbild und Symbole in der Tabelle */
+.avatar-tile.ring { overflow: visible }
+.avatar-tile.ring::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--rc); border-radius: 12px; pointer-events: none; box-shadow: 0 0 8px color-mix(in srgb, var(--rc) 45%, transparent) }
+.avatar-tile.ring img { border-radius: 0 0 10px 10px }
+.ring.gold { --rc: var(--gold) } .ring.silver { --rc: var(--silver) } .ring.bronze { --rc: var(--bronze) }
+.podium { display: inline-flex; flex: none; font-size: 15px }
+.podium.gold { color: var(--gold) } .podium.silver { color: var(--silver) } .podium.bronze { color: var(--bronze) }
 .avatar-tile img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 96%; object-fit: contain; object-position: bottom center; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)) }
 .plist-players { display: grid; gap: 4px }
 .prow { display: flex; gap: 12px; align-items: center; text-align: left; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 10px 4px }

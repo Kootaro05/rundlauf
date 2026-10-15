@@ -82,6 +82,18 @@ export function semesterElo(pauses: Pause[], now = Date.now()): EloResult {
   return computeElo(pauses.filter((pa) => periodKey(pa.startedAt, 'semester') === key));
 }
 
+export type Podium = 1 | 2 | 3;
+
+/** Die drei Besten einer Wertung: Spieler-ID → Platz 1 bis 3. Wer noch nicht gespielt hat, steht nicht drin. */
+export function podium(rating: Record<string, number>): Record<string, Podium> {
+  return Object.fromEntries(
+    Object.entries(rating)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([p], i) => [p, (i + 1) as Podium]),
+  );
+}
+
 /** Wertung zu einem Zeitpunkt (letzter Stand davor). Wer bis dahin nicht gespielt hat, steht auf dem Startwert. */
 export function ratingAt(history: EloPoint[] | undefined, t: number): number {
   if (!history) return ELO_START;

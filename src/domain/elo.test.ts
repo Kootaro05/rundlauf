@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ELO_START, computeElo, placement, ratingAt, semesterElo } from './elo';
+import { ELO_START, computeElo, placement, podium, ratingAt, semesterElo } from './elo';
 import { computeComebacks, computeDuels, longestFinalStreak } from './stats';
 import type { EventType, Pause, Round } from './types';
 
@@ -46,6 +46,11 @@ describe('ELO', () => {
     expect(gesamt.history.a).toHaveLength(3);
     expect(semester.rating.a).toBeLessThan(gesamt.rating.a);
     expect(semesterElo(pausen, new Date(2027, 3, 1).getTime()).rating).toEqual({});
+  });
+
+  it('Podium: die drei Besten in Reihenfolge', () => {
+    expect(podium({ a: 990, b: 1040, c: 1010, d: 1001 })).toEqual({ b: 1, c: 2, d: 3 });
+    expect(podium({ a: 1000 })).toEqual({ a: 1 });
   });
 
   it('Verlauf und Wert zu einem Zeitpunkt', () => {

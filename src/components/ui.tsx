@@ -1,4 +1,5 @@
 import { createContext, useContext, type CSSProperties } from 'react';
+import type { Podium } from '../domain/elo';
 import type { Data, NewEvent, Pause, PrivateData } from '../domain/types';
 import type { Backend, Session } from '../lib/backend';
 import type { Scope } from '../lib/sync';
@@ -52,6 +53,35 @@ export const CrownIcon = () => (
   </svg>
 );
 
+const MedalIcon = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" opacity=".55" d="M7 2h4l2 6H9zM13 2h4l-2 6h-4z" />
+    <circle cx="12" cy="15" r="7" fill="currentColor" />
+  </svg>
+);
+
+const StarIcon = () => (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.2 1.3-6.6L2.5 9.3l6.6-.8z" />
+  </svg>
+);
+
+const PODIUM_CLASS = { 1: 'gold', 2: 'silver', 3: 'bronze' } as const;
+
+/**
+ * Auszeichnung der drei Besten: in der ELO Krone (1.) und Medaillen (2., 3.),
+ * in der Semester-ELO Sterne; jeweils in Gold, Silber, Bronze.
+ */
+export function PodiumIcon({ place, kind }: { place?: Podium; kind: 'elo' | 'semester' }) {
+  if (!place) return null;
+  const label = `${place}. Platz ${kind === 'elo' ? 'ELO' : 'Semester-ELO'}`;
+  return (
+    <span className={`podium ${PODIUM_CLASS[place]}`} title={label} aria-label={label}>
+      {kind === 'semester' ? <StarIcon /> : place === 1 ? <CrownIcon /> : <MedalIcon />}
+    </span>
+  );
+}
+
 export const WaveIcon = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
     <path fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" d="M2 10c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 16c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2" />
@@ -70,11 +100,13 @@ const initials = (s: string) =>
  * Profilbild als Kachel in der Spielerfarbe. Freigestellte Bilder stehen ohne Rahmen unten bündig darin.
  * Ohne Bild: Initialen.
  */
-export function Avatar({ p, size }: { p: string; size: number }) {
+export function Avatar({ p, size, place }: { p: string; size: number; place?: Podium }) {
   const { avatar, name, color } = useApp();
   const url = avatar(p);
+  // Die drei Besten (ELO) bekommen einen Rahmen in Gold, Silber oder Bronze
+  const ring = place ? ` ring ${PODIUM_CLASS[place]}` : '';
   return (
-    <span className="avatar-tile" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.4, '--pc': color(p) } as CSSProperties}>
+    <span className={`avatar-tile${ring}`} aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.4, '--pc': color(p) } as CSSProperties}>
       {url ? <img src={url} alt="" /> : initials(name(p))}
     </span>
   );

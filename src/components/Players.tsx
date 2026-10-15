@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { computeElo, podium } from '../domain/elo';
 import { computeStats } from '../domain/stats';
 import { PlayerProfile } from './PlayerProfile';
 import { Avatar, useApp } from './ui';
@@ -23,6 +24,8 @@ function PlayerList() {
   const { data, backend, run, busy, canWrite, isMember, priv, openProfile, realName, name } = useApp();
   const [newName, setNewName] = useState('');
   const stats = computeStats(data.pauses);
+  // Die drei Besten der ELO bekommen einen Rahmen in Gold, Silber, Bronze
+  const top = useMemo(() => podium(computeElo(data.pauses).rating), [data.pauses]);
   const players = [...data.players].sort((a, b) => a.hidden === b.hidden ? a.name.localeCompare(b.name, 'de') : a.hidden ? 1 : -1);
 
   const add = async () => {
@@ -50,7 +53,7 @@ function PlayerList() {
           const info = s ? `${s.pausen} Pausen · ${s.runden} Runden` : 'noch nicht gespielt';
           const content = (
             <>
-              <Avatar p={p.id} size={44} />
+              <Avatar p={p.id} size={44} place={top[p.id]} />
               <span className="pinfo">
                 <span className="row">
                   <b>{name(p.id)}</b>
