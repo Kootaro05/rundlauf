@@ -7,7 +7,7 @@ const env = (globalThis as unknown as { process: { env: Record<string, string | 
 
 /** Ansagen sind kurz; längere Texte werden abgelehnt, damit niemand Guthaben verheizt */
 const MAX_LEN = 240;
-const DEFAULT_MODEL = 'eleven_turbo_v2_5';
+const DEFAULT_MODEL = 'eleven_v4_turbo';
 
 const fail = (status: number, error: string) => Response.json({ error }, { status });
 

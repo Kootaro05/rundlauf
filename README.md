@@ -194,7 +194,7 @@ Ohne diesen Schritt spricht der Kommentator mit der Browser-Stimme (in Edge am b
 3. In Vercel unter **Settings → Environment Variables** (Production) anlegen:
    - `ELEVENLABS_API_KEY`: der Schlüssel
    - `ELEVENLABS_VOICE_ID`: die Voice ID
-   - `ELEVENLABS_MODEL` (optional): Modell-ID aus der ElevenLabs-Doku, Standard ist `eleven_turbo_v2_5`
+   - `ELEVENLABS_MODEL` (optional): Modell-ID aus der ElevenLabs-Doku, Standard ist `eleven_v4_turbo`
 4. **Deployments → Redeploy**, damit die Variablen greifen.
 5. Im Tisch-Modus den Kommentar aus- und wieder einschalten. Steht am Knopf nicht mehr „Browser-Stimme“, spricht ElevenLabs.
 
