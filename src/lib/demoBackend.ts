@@ -9,7 +9,11 @@ export function createDemoBackend(): Backend {
   // Echte Namen der Beispiel-Spieler. Im Demo-Modus bist du Admin und Spieler "Countess" (demo-0).
   const emptyInfo = (): PlayerPrivate => ({ firstName: null, lastName: null, avatarPath: null, avatarUrl: null });
   const priv: PrivateData = {
-    info: Object.fromEntries(DEMO_PEOPLE.map((p, i) => [`demo-${i}`, { ...emptyInfo(), firstName: p.first, lastName: p.last }])),
+    // Profilbilder: eigene Fantasiefiguren in public/demo-avatars (nur im Demo-Modus geladen)
+    info: Object.fromEntries(DEMO_PEOPLE.map((p, i) => {
+      const url = `${import.meta.env.BASE_URL}demo-avatars/${p.avatar}.svg`;
+      return [`demo-${i}`, { ...emptyInfo(), firstName: p.first, lastName: p.last, avatarPath: url, avatarUrl: url }];
+    })),
     accounts: { 'demo-0': { email: 'demo@example.com', linked: true, userId: 'demo-user', isAdmin: true } },
   };
   const invites: (Invite & { token: string })[] = [];

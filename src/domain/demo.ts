@@ -3,12 +3,12 @@ import type { Data, GameEvent, Pause, Player, Round } from './types';
 
 /** Beispiel-Spieler: Informatik-Pioniere mit Spitznamen. Spieler-ID ist `demo-<index>`. */
 export const DEMO_PEOPLE = [
-  { nick: 'Countess', first: 'Ada', last: 'Lovelace' },
-  { nick: 'Tux', first: 'Linus', last: 'Torvalds' },
-  { nick: 'Bugfinder', first: 'Grace', last: 'Hopper' },
-  { nick: 'Enigma', first: 'Alan', last: 'Turing' },
-  { nick: 'Substitution', first: 'Barbara', last: 'Liskov' },
-  { nick: 'Goto', first: 'Edsger', last: 'Dijkstra' },
+  { nick: 'Countess', first: 'Ada', last: 'Lovelace', avatar: 'countess' },
+  { nick: 'Tux', first: 'Linus', last: 'Torvalds', avatar: 'tux' },
+  { nick: 'Bugfinder', first: 'Grace', last: 'Hopper', avatar: 'bugfinder' },
+  { nick: 'Enigma', first: 'Alan', last: 'Turing', avatar: 'enigma' },
+  { nick: 'Substitution', first: 'Barbara', last: 'Liskov', avatar: 'substitution' },
+  { nick: 'Goto', first: 'Edsger', last: 'Dijkstra', avatar: 'goto' },
 ];
 
 /** Erfundene Beispieldaten, deterministisch erzeugt. */

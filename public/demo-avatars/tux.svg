@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- Demo-Figur: Pinguin (eigene Zeichnung) -->
+  <path d="M40 500 Q50 330 200 310 Q350 330 360 500 Z" fill="#1b1f24"/>
+  <path d="M110 500 Q115 380 200 370 Q285 380 290 500 Z" fill="#f5f2ea"/>
+  <ellipse cx="200" cy="200" rx="125" ry="135" fill="#1b1f24"/>
+  <path d="M110 215 Q110 120 200 120 Q290 120 290 215 Q290 300 200 305 Q110 300 110 215 Z" fill="#f5f2ea"/>
+  <ellipse cx="160" cy="195" rx="20" ry="26" fill="#fff"/><ellipse cx="240" cy="195" rx="20" ry="26" fill="#fff"/>
+  <circle cx="165" cy="200" r="11" fill="#1b1f24"/><circle cx="235" cy="200" r="11" fill="#1b1f24"/>
+  <circle cx="169" cy="195" r="4" fill="#fff"/><circle cx="239" cy="195" r="4" fill="#fff"/>
+  <path d="M168 245 Q200 225 232 245 Q200 280 168 245 Z" fill="#f2a516"/>
+  <path d="M168 245 Q200 258 232 245" stroke="#c97f08" stroke-width="4" fill="none"/>
+  <ellipse cx="135" cy="260" rx="16" ry="10" fill="#f4b6b0" opacity=".6"/><ellipse cx="265" cy="260" rx="16" ry="10" fill="#f4b6b0" opacity=".6"/>
+</svg>

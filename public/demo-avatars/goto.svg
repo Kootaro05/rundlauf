@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- Demo-Figur: Pirat (eigene Zeichnung) -->
+  <path d="M25 500 Q40 360 200 340 Q360 360 375 500 Z" fill="#9b2230"/>
+  <path d="M170 345 L200 420 L230 345 Z" fill="#f5efe2"/>
+  <g fill="#f0c24f"><circle cx="120" cy="420" r="8"/><circle cx="120" cy="455" r="8"/><circle cx="280" cy="420" r="8"/><circle cx="280" cy="455" r="8"/></g>
+  <ellipse cx="200" cy="235" rx="80" ry="92" fill="#e2b08a"/>
+  <path d="M125 265 Q130 345 200 352 Q270 345 275 265 Q255 300 200 302 Q145 300 125 265 Z" fill="#3a2418"/>
+  <path d="M165 280 Q200 268 235 280 Q200 292 165 280 Z" fill="#2a1a10"/>
+  <circle cx="228" cy="228" r="9" fill="#1d1d22"/>
+  <path d="M150 205 L195 220 L190 245 L150 245 Z" fill="#111"/>
+  <path d="M120 200 L285 250" stroke="#111" stroke-width="6"/>
+  <path d="M195 240 Q200 258 207 242" stroke="#c08f6b" stroke-width="5" fill="none"/>
+  <path d="M85 175 Q120 115 200 118 Q280 115 315 175 Q260 150 200 155 Q140 150 85 175 Z" fill="#1b1b1f"/>
+  <path d="M70 170 Q200 110 330 170 Q200 140 70 170 Z" fill="#2a2a30"/>
+  <path d="M95 168 Q200 128 305 168" stroke="#f0c24f" stroke-width="5" fill="none"/>
+  <circle cx="200" cy="140" r="14" fill="#f5efe2"/><rect x="193" y="150" width="14" height="8" fill="#f5efe2"/>
+</svg>

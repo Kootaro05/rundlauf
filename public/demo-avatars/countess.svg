@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- Demo-Figur: Astronautin (eigene Zeichnung) -->
+  <defs>
+    <radialGradient id="visor" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#7fb6ff"/><stop offset=".55" stop-color="#1d3b7a"/><stop offset="1" stop-color="#0a1430"/>
+    </radialGradient>
+    <linearGradient id="suit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f6f8"/><stop offset="1" stop-color="#c9d0d8"/>
+    </linearGradient>
+  </defs>
+  <path d="M30 500 Q40 365 200 345 Q360 365 370 500 Z" fill="url(#suit)"/>
+  <path d="M120 420 h60 v40 h-60 z" fill="#e0661a" rx="6"/>
+  <circle cx="300" cy="440" r="22" fill="#1f6fb2"/>
+  <rect x="140" y="320" width="120" height="40" rx="14" fill="#9aa5b1"/>
+  <circle cx="200" cy="210" r="135" fill="url(#suit)" stroke="#aab4be" stroke-width="6"/>
+  <ellipse cx="200" cy="215" rx="100" ry="85" fill="url(#visor)"/>
+  <path d="M135 175 Q165 140 215 145" stroke="#ffffff" stroke-opacity=".7" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <circle cx="92" cy="215" r="12" fill="#c9d0d8"/><circle cx="308" cy="215" r="12" fill="#c9d0d8"/>
+</svg>

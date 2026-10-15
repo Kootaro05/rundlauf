@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+  <!-- Demo-Figur: Zauberer (eigene Zeichnung) -->
+  <path d="M25 500 Q40 360 200 340 Q360 360 375 500 Z" fill="#5b2d91"/>
+  <path d="M160 350 L200 500 L240 350 Z" fill="#7a46b8"/>
+  <ellipse cx="200" cy="235" rx="78" ry="88" fill="#f1c9a5"/>
+  <path d="M120 250 Q125 400 200 430 Q275 400 280 250 Q260 290 200 292 Q140 290 120 250 Z" fill="#eef0f2"/>
+  <path d="M165 268 Q200 255 235 268 Q200 282 165 268 Z" fill="#dfe2e6"/>
+  <circle cx="172" cy="225" r="9" fill="#2a2a35"/><circle cx="228" cy="225" r="9" fill="#2a2a35"/>
+  <path d="M155 205 Q172 196 188 205" stroke="#dfe2e6" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M212 205 Q228 196 245 205" stroke="#dfe2e6" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M195 238 Q200 255 205 238" stroke="#d4a283" stroke-width="5" fill="none"/>
+  <ellipse cx="200" cy="168" rx="125" ry="22" fill="#24317a"/>
+  <path d="M110 165 Q170 120 190 20 Q230 90 290 165 Z" fill="#2e3d99"/>
+  <g fill="#f0c24f"><path d="M175 110 l6 14 15 1 -12 9 4 15 -13 -8 -13 8 4 -15 -12 -9 15 -1z"/><circle cx="228" cy="140" r="6"/><circle cx="150" cy="150" r="4"/><circle cx="205" cy="70" r="4"/></g>
+</svg>
