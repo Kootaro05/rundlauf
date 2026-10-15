@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { balances, crownCheck, currentRound, kingOf, nextSeq, openPause, roundInfo, serveRule } from '../domain/game';
 import { lineForEvent, lineForFinal, render, type Line } from '../domain/commentary';
 import type { NewEvent, Pause, Round } from '../domain/types';
-import { setSpeechEnabled, speak, speechEnabled, speechSupported } from '../lib/speech';
+import { configureVoice, setSpeechEnabled, speak, speechEnabled, speechSupported, unlockAudio, type VoiceSource } from '../lib/speech';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
 
 /** So lange bleibt die Wahl "Krone oder raus" offen, wenn niemand tippt */
@@ -17,12 +17,14 @@ const TAP_LOCK = 800;
  */
 export function TableMode({ onExit }: { onExit: () => void }) {
   const { data, backend, run, canWrite } = useApp();
+  useEffect(() => configureVoice(() => backend.auth.accessToken()), [backend]);
   const pa = openPause(data.pauses);
   const r = currentRound(pa);
   const [celebrate, setCelebrate] = useState<{ p: string; pot: number } | null>(null);
   const starting = useRef(false);
   const [voice, setVoice] = useState(speechEnabled);
-  const say = useCommentary(pa, voice);
+  const [source, setSource] = useState<VoiceSource | null>(null);
+  const say = useCommentary(pa, voice, setSource);
 
   useWakeLock();
 
@@ -30,7 +32,10 @@ export function TableMode({ onExit }: { onExit: () => void }) {
     setSpeechEnabled(!voice);
     setVoice(!voice);
     // Der Tipp schaltet die Sprachausgabe frei (iPad/Safari reden erst nach einer Berührung)
-    if (!voice) speak('Kommentator an.');
+    if (!voice) {
+      unlockAudio();
+      void speak('Kommentator an.').then(setSource);
+    }
   };
 
   const startRound = useCallback(async (pause: Pause, participants: string[]) => {
@@ -82,7 +87,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
 
   return (
     <div className="tm">
-      <TopBar pa={pa} r={r} voice={voice} onVoice={toggleVoice} onExit={() => void exit()} />
+      <TopBar pa={pa} r={r} voice={voice} fallback={voice && source === 'browser'} onVoice={toggleVoice} onExit={() => void exit()} />
       <div className="tm-body">{body}</div>
       {celebrate && <Celebration {...celebrate} />}
     </div>
@@ -93,7 +98,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
  * Kommentator: sagt neu eingetragene Ereignisse der laufenden Pause an. Was beim Öffnen schon
  * da war, bleibt still; Rückgängig sagt nichts. Gibt eine Funktion für zusätzliche Ansagen zurück.
  */
-function useCommentary(pa: Pause | null, enabled: boolean) {
+function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceSource) => void) {
   const { name } = useApp();
   const seen = useRef<Set<string> | null>(null);
   const lastText = useRef<string>();
@@ -103,8 +108,8 @@ function useCommentary(pa: Pause | null, enabled: boolean) {
   const say = useCallback((line: Line | null) => {
     if (!line || !enabledRef.current) return;
     lastText.current = render(line, name, Math.random, lastText.current);
-    speak(lastText.current);
-  }, [name]);
+    void speak(lastText.current).then(onSource);
+  }, [name, onSource]);
 
   useEffect(() => {
     if (!pa) return;
@@ -138,8 +143,8 @@ function SpeakerIcon({ on }: { on: boolean }) {
 
 // ---------------------------------------------------------------------------
 
-function TopBar({ pa, r, voice, onVoice, onExit }: {
-  pa: Pause | null; r: Round | null; voice: boolean; onVoice: () => void; onExit: () => void;
+function TopBar({ pa, r, voice, fallback, onVoice, onExit }: {
+  pa: Pause | null; r: Round | null; voice: boolean; fallback: boolean; onVoice: () => void; onExit: () => void;
 }) {
   const { undo, redo, redoNext, busy, run, backend, name } = useApp();
   const last = pa?.rounds.at(-1);
@@ -178,6 +183,7 @@ function TopBar({ pa, r, voice, onVoice, onExit }: {
         <button className={`tm-voice${voice ? ' on' : ''}`} aria-pressed={voice} onClick={onVoice}
           title={voice ? 'Kommentator ausschalten' : 'Kommentator einschalten'}>
           <SpeakerIcon on={voice} /> <span>Kommentar</span>
+          {fallback && <small title="ElevenLabs ist gerade nicht erreichbar, nicht eingerichtet oder das Guthaben ist leer">Browser-Stimme</small>}
         </button>
       )}
       <button className="tm-exit" aria-label="Tisch-Modus schließen" onClick={onExit}>✕</button>

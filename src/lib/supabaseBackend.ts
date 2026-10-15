@@ -122,6 +122,10 @@ export function createSupabaseBackend(url: string, key: string): Backend {
       async signOut() {
         await sb.auth.signOut();
       },
+      async accessToken() {
+        const { data } = await sb.auth.getSession();
+        return data.session?.access_token ?? null;
+      },
     },
 
     async load(): Promise<Data> {

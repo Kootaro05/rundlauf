@@ -15,6 +15,8 @@ export interface AuthApi {
   /** Meldet mit dem Code aus der Mail an. Nötig in der installierten App auf dem iPhone, wo Links in Safari landen. */
   verifyCode(email: string, code: string): Promise<void>;
   signOut(): Promise<void>;
+  /** Aktueller Login-Token für eigene Server-Funktionen (z. B. /api/tts); null ohne Login oder im Demo-Modus */
+  accessToken(): Promise<string | null>;
 }
 
 /**

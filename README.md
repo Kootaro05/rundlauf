@@ -26,7 +26,8 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   Spielern. Schließen (✕) bricht eine noch leere Runde ab; eine Runde mit Einträgen läuft normal weiter.
   Pause starten/beenden und Spieler ändern bleiben in der normalen Ansicht.
   **Kommentator** (Knopf „Kommentar“, standardmäßig aus): sagt Schwimmer, Kronen, Finale samt Aufschläger und Sieg
-  über die eingebaute Browser-Stimme an. Die Sprüche stehen in `src/domain/commentary.ts`.
+  an, mit ElevenLabs (falls eingerichtet) oder der eingebauten Browser-Stimme. Die Sprüche stehen in
+  `src/domain/commentary.ts`.
 - **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
   Runden und Pausen starten geht nur online. Die App startet auch ohne Netz mit dem zuletzt geladenen Stand.
 - **Dashboard:** Rekorde pro Tag, Woche, Semester und insgesamt, Tabelle mit Quoten, Kronen-Kurve, Duelle (Finalbilanz
@@ -89,6 +90,7 @@ npm test
 | Mailversand | Resend, Domain `rundlauf.timberborn.de` (Region Irland) | Login-Mails von `auth@rundlauf.timberborn.de` |
 | DNS | Strato, Domain `timberborn.de` | Subdomain für App und Mailversand |
 | Code | https://github.com/Kootaro05/rundlauf | GitHub Actions prüft bei jedem Push Typen, Tests und Build |
+| Kommentator-Stimme | ElevenLabs (optional, Prepaid) → [`/api/tts`](api/tts.ts) | Bessere Stimme im Tisch-Modus; ohne Schlüssel spricht die Browser-Stimme |
 | Wachhalten | Vercel-Cron, täglich 06:00 UTC → [`/api/ping`](api/ping.ts) | Liest eine Zeile aus Supabase, damit das Gratis-Projekt nicht nach 7 Tagen pausiert |
 
 `https://rundlauf.vercel.app` funktioniert weiterhin, gilt auf dem Handy aber als eigene App mit eigener Anmeldung.
@@ -181,6 +183,29 @@ Der Code steht mit Absicht im Betreff, so sieht man ihn schon in der Benachricht
    (aktuell `818709f23a2b98ab.vercel-dns-017.com`). Dadurch verschwinden die A- und AAAA-Einträge, die Strato
    automatisch anlegt. Sie müssen weg, sonst landen manche Geräte bei Strato statt bei Vercel.
    Die Resend-Einträge liegen auf eigenen Namen und bleiben unberührt.
+
+### 5. Kommentator-Stimme über ElevenLabs (optional)
+
+Ohne diesen Schritt spricht der Kommentator mit der Browser-Stimme (in Edge am besten). Mit ElevenLabs:
+
+1. Bei [elevenlabs.io](https://elevenlabs.io) unter **ElevenAPI** einen API-Schlüssel anlegen. Rechte: nur *Text to Speech*.
+   Prepaid bzw. ein Ausgabenlimit setzen.
+2. In der Voice Library eine Stimme aussuchen (Deutsch oder mehrsprachig) und deren **Voice ID** kopieren.
+3. In Vercel unter **Settings → Environment Variables** (Production) anlegen:
+   - `ELEVENLABS_API_KEY`: der Schlüssel
+   - `ELEVENLABS_VOICE_ID`: die Voice ID
+   - `ELEVENLABS_MODEL` (optional): Modell-ID aus der ElevenLabs-Doku, Standard ist `eleven_turbo_v2_5`
+4. **Deployments → Redeploy**, damit die Variablen greifen.
+5. Im Tisch-Modus den Kommentar aus- und wieder einschalten. Steht am Knopf nicht mehr „Browser-Stimme“, spricht ElevenLabs.
+
+So verhält sich die App:
+- Nur angemeldete Mitglieder können über [`/api/tts`](api/tts.ts) Audio erzeugen; Texte sind auf 240 Zeichen begrenzt.
+- Jeder fertige Satz wird auf dem Gerät gespeichert und danach ohne Guthaben abgespielt.
+- Höchstens 15.000 neue Zeichen pro Gerät und Tag, danach Browser-Stimme.
+- Guthaben leer, Schlüssel fehlt oder kein Zugriff: eine Stunde lang Browser-Stimme, dann neuer Versuch.
+  Kommentar aus- und einschalten probiert es sofort wieder (z. B. nach dem Aufladen).
+- Antwortet ElevenLabs nicht innerhalb von 1,5 Sekunden oder ist kein Netz da, spricht für diesen Satz die Browser-Stimme.
+- Wird die Stimme gewechselt, werden die Sätze einmal neu erzeugt.
 
 ### Wer darf was?
 

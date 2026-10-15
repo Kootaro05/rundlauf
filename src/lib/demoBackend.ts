@@ -34,6 +34,7 @@ export function createDemoBackend(): Backend {
       signIn: async () => {},
       verifyCode: async () => {},
       signOut: async () => {},
+      accessToken: async () => null,
     },
     load: async () => structuredClone(data),
     loadPlayers: async () => structuredClone(data.players),
