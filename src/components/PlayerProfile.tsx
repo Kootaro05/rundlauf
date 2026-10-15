@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
-import { computeElo, ELO_START, semesterElo } from '../domain/elo';
+import { computeElo, ELO_START, podium, semesterElo, type Podium } from '../domain/elo';
 import { fmtDate } from '../domain/periods';
 import { computeDuels, computeStats, longestFinalStreak, pct } from '../domain/stats';
 import { loadForCrop } from '../lib/image';
@@ -25,6 +25,9 @@ export function PlayerProfile({ p }: { p: string }) {
   const s = computeStats(data.pauses)[p];
   const ranking = Object.keys(elo.rating).sort((a, b) => elo.rating[b] - elo.rating[a]);
   const rank = ranking.indexOf(p) + 1;
+  // Die drei Besten jeder Wertung: Rahmen in Gold, Silber, Bronze um das jeweilige Tag
+  const topAll = podium(eloAll.rating);
+  const topSem = podium(elo.rating);
   const rating = Math.round(elo.rating[p] ?? ELO_START);
   const ratingAll = Math.round(eloAll.rating[p] ?? ELO_START);
   const img = avatar(p);
@@ -50,8 +53,8 @@ export function PlayerProfile({ p }: { p: string }) {
           <div className="hero-top">
             <div className="hero-badges">
               {rank > 0 && <span className="hero-badge">Platz {rank} von {ranking.length}</span>}
-              <span className="hero-badge">Semester-ELO {rating}</span>
-              <span className="hero-badge">ELO {ratingAll}</span>
+              <span className={`hero-badge${ringClass(topSem[p])}`}>Semester-ELO {rating}</span>
+              <span className={`hero-badge${ringClass(topAll[p])}`}>ELO {ratingAll}</span>
               {player.hidden && <span className="hero-badge">ausgeblendet</span>}
             </div>
             {/* ELO zusätzlich groß als Wasserzeichen, im selben Stil wie die Platzzahl rechts */}
@@ -106,6 +109,8 @@ export function PlayerProfile({ p }: { p: string }) {
     </div>
   );
 }
+
+const ringClass = (place?: Podium) => (place ? ` ring ${({ 1: 'gold', 2: 'silver', 3: 'bronze' } as const)[place]}` : '');
 
 function Tile({ label, big, sub }: { label: string; big: number; sub: string }) {
   return (

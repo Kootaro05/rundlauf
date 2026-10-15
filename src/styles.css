@@ -201,6 +201,7 @@ main { overflow-x: clip }
 .avatar-tile.ring { overflow: visible }
 .avatar-tile.ring::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--rc); border-radius: 12px; pointer-events: none; box-shadow: 0 0 8px color-mix(in srgb, var(--rc) 45%, transparent) }
 .avatar-tile.ring img { border-radius: 0 0 10px 10px }
+.hero-badge.ring { border: 2px solid var(--rc); box-shadow: 0 0 8px color-mix(in srgb, var(--rc) 55%, transparent) }
 .ring.gold { --rc: var(--gold) } .ring.silver { --rc: var(--silver) } .ring.bronze { --rc: var(--bronze) }
 .podium { display: inline-flex; flex: none; font-size: 15px }
 .podium.gold { color: var(--gold) } .podium.silver { color: var(--silver) } .podium.bronze { color: var(--bronze) }
