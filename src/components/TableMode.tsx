@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { balances, crownCheck, currentRound, kingOf, nextSeq, openPause, roundInfo, serveRule } from '../domain/game';
+import { lineForEvent, lineForFinal, render, type Line } from '../domain/commentary';
 import type { NewEvent, Pause, Round } from '../domain/types';
+import { setSpeechEnabled, speak, speechEnabled, speechSupported } from '../lib/speech';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
 
 /** So lange bleibt die Wahl "Krone oder raus" offen, wenn niemand tippt */
@@ -19,8 +21,17 @@ export function TableMode({ onExit }: { onExit: () => void }) {
   const r = currentRound(pa);
   const [celebrate, setCelebrate] = useState<{ p: string; pot: number } | null>(null);
   const starting = useRef(false);
+  const [voice, setVoice] = useState(speechEnabled);
+  const say = useCommentary(pa, voice);
 
   useWakeLock();
+
+  const toggleVoice = () => {
+    setSpeechEnabled(!voice);
+    setVoice(!voice);
+    // Der Tipp schaltet die Sprachausgabe frei (iPad/Safari reden erst nach einer Berührung)
+    if (!voice) speak('Kommentator an.');
+  };
 
   const startRound = useCallback(async (pause: Pause, participants: string[]) => {
     if (starting.current || participants.length < 2) return;
@@ -66,21 +77,70 @@ export function TableMode({ onExit }: { onExit: () => void }) {
         <p className="tm-sub">{plural(lastParticipants(pa).length, 'Spieler', 'Spieler')} wie zuletzt. Spieler ändern geht in der normalen Ansicht.</p>
       </div>
     );
-  else if (roundInfo(r).active.length <= 2) body = <FinalView key={r.id} pa={pa} r={r} onWon={(w, pot) => void afterFinal(pa, r, w, pot)} />;
+  else if (roundInfo(r).active.length <= 2) body = <FinalView key={r.id} pa={pa} r={r} onServe={(p) => say({ kind: 'serve', vars: { server: p } })} onWon={(w, pot) => void afterFinal(pa, r, w, pot)} />;
   else body = <RoundView key={r.id} pa={pa} r={r} />;
 
   return (
     <div className="tm">
-      <TopBar pa={pa} r={r} onExit={() => void exit()} />
+      <TopBar pa={pa} r={r} voice={voice} onVoice={toggleVoice} onExit={() => void exit()} />
       <div className="tm-body">{body}</div>
       {celebrate && <Celebration {...celebrate} />}
     </div>
   );
 }
 
+/**
+ * Kommentator: sagt neu eingetragene Ereignisse der laufenden Pause an. Was beim Öffnen schon
+ * da war, bleibt still; Rückgängig sagt nichts. Gibt eine Funktion für zusätzliche Ansagen zurück.
+ */
+function useCommentary(pa: Pause | null, enabled: boolean) {
+  const { name } = useApp();
+  const seen = useRef<Set<string> | null>(null);
+  const lastText = useRef<string>();
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+
+  const say = useCallback((line: Line | null) => {
+    if (!line || !enabledRef.current) return;
+    lastText.current = render(line, name, Math.random, lastText.current);
+    speak(lastText.current);
+  }, [name]);
+
+  useEffect(() => {
+    if (!pa) return;
+    const ids = [...pa.rounds.map((r) => r.id), ...pa.rounds.flatMap((r) => r.events.map((e) => e.id))];
+    if (!seen.current) {
+      seen.current = new Set(ids);
+      return;
+    }
+    const known = seen.current;
+    const newEvents = pa.rounds.flatMap((r) => r.events).filter((e) => !known.has(e.id));
+    const newRounds = pa.rounds.filter((r) => !known.has(r.id));
+    ids.forEach((id) => known.add(id));
+    const e = newEvents.at(-1);
+    if (e) return say(lineForEvent(pa, e));
+    // Runde mit nur zwei Spielern ist sofort ein Finale
+    const r = newRounds.at(-1);
+    if (r && r.events.length === 0 && r.participants.length === 2) say(lineForFinal(pa, r));
+  }, [pa, say]);
+
+  return say;
+}
+
+function SpeakerIcon({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
+      {on ? <><path d="M16.5 8.5a5 5 0 0 1 0 7" /><path d="M19 6a8.5 8.5 0 0 1 0 12" /></> : <path d="m17 9 5 6m0-6-5 6" />}
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 
-function TopBar({ pa, r, onExit }: { pa: Pause | null; r: Round | null; onExit: () => void }) {
+function TopBar({ pa, r, voice, onVoice, onExit }: {
+  pa: Pause | null; r: Round | null; voice: boolean; onVoice: () => void; onExit: () => void;
+}) {
   const { undo, redo, redoNext, busy, run, backend, name } = useApp();
   const last = pa?.rounds.at(-1);
   const prev = pa?.rounds.at(-2);
@@ -114,6 +174,12 @@ function TopBar({ pa, r, onExit }: { pa: Pause | null; r: Round | null; onExit: 
           <button className="tm-undo" disabled={busy} onClick={redo}>↷ <span>{describe(redoNext, name)}</span></button>
         )}
       </div>
+      {speechSupported() && (
+        <button className={`tm-voice${voice ? ' on' : ''}`} aria-pressed={voice} onClick={onVoice}
+          title={voice ? 'Kommentator ausschalten' : 'Kommentator einschalten'}>
+          <SpeakerIcon on={voice} /> <span>Kommentar</span>
+        </button>
+      )}
       <button className="tm-exit" aria-label="Tisch-Modus schließen" onClick={onExit}>✕</button>
     </header>
   );
@@ -218,7 +284,9 @@ function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap }: {
 
 // ---------------------------------------------------------------------------
 
-function FinalView({ pa, r, onWon }: { pa: Pause; r: Round; onWon: (winner: string, pot: number) => void }) {
+function FinalView({ pa, r, onServe, onWon }: {
+  pa: Pause; r: Round; onServe: (server: string) => void; onWon: (winner: string, pot: number) => void;
+}) {
   const { addEvent, name, color } = useApp();
   const rule = serveRule(pa, r);
   const i = roundInfo(r);
@@ -234,7 +302,11 @@ function FinalView({ pa, r, onWon }: { pa: Pause; r: Round; onWon: (winner: stri
   const tap = async (p: string) => {
     if (Date.now() < lockUntil.current) return;
     lockUntil.current = Date.now() + TAP_LOCK;
-    if (askServe) return setPicked(p);
+    if (askServe) {
+      setPicked(p);
+      onServe(p);
+      return;
+    }
     const loser = p === rule.a ? rule.b : rule.a;
     const ok = await addEvent(r.id, nextSeq(r), { type: 'final', p, loser, server, pot: i.pot }, `${name(p)} gewinnt ${plural(i.pot, 'Krone', 'Kronen')}`);
     if (ok) onWon(p, i.pot);

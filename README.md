@@ -25,6 +25,8 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   Aufschlagregel und Siegesanzeige. Beim Öffnen und nach jedem Finale startet automatisch eine Runde mit denselben
   Spielern. Schließen (✕) bricht eine noch leere Runde ab; eine Runde mit Einträgen läuft normal weiter.
   Pause starten/beenden und Spieler ändern bleiben in der normalen Ansicht.
+  **Kommentator** (Knopf „Kommentar“, standardmäßig aus): sagt Schwimmer, Kronen, Finale samt Aufschläger und Sieg
+  über die eingebaute Browser-Stimme an. Die Sprüche stehen in `src/domain/commentary.ts`.
 - **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
   Runden und Pausen starten geht nur online. Die App startet auch ohne Netz mit dem zuletzt geladenen Stand.
 - **Dashboard:** Rekorde pro Tag, Woche, Semester und insgesamt, Tabelle mit Quoten, Kronen-Kurve, Duelle (Finalbilanz

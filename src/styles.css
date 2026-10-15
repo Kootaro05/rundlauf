@@ -329,6 +329,8 @@ select { font: inherit; color: var(--ink); background: var(--surface-2); border:
 .tm-undo span { font-weight: 400; opacity: .75; overflow: hidden; text-overflow: ellipsis }
 .tm-undo:disabled { opacity: .5 }
 .tm-exit { background: none; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; width: 48px; height: 48px; font-size: 20px; opacity: .6 }
+.tm-voice { background: none; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; height: 48px; padding: 0 14px; display: inline-flex; gap: 8px; align-items: center; font-size: 16px; font-weight: 600; opacity: .6 }
+.tm-voice.on { opacity: 1; background: rgba(240,194,79,.14); border-color: #f0c24f; color: #f0c24f }
 .tm-body { min-height: 0; padding: 14px }
 .tm-center { height: 100%; display: grid; place-content: center; justify-items: center; gap: 16px; text-align: center }
 .tm-big { background: var(--ball); color: #fff; border: 0; border-radius: 18px; padding: 28px 48px; font-family: var(--f-display); font-weight: 800; font-size: 44px; text-transform: uppercase }
