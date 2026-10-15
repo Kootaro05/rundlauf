@@ -251,22 +251,38 @@ function FinalView({ pa, r, onWon }: { pa: Pause; r: Round; onWon: (winner: stri
         </span>
       </div>
       <div className="tm-showdown-stage">
-        <Fighter p={rule.a} crowns={b[rule.a] ?? 0} king={rule.a === king} serves={server === rule.a} onTap={() => void tap(rule.a)} />
+        <Fighter p={rule.a} crowns={b[rule.a] ?? 0} king={rule.a === king} serves={server === rule.a} side="left" onTap={() => void tap(rule.a)} />
         <div className="tm-vs" aria-hidden="true">VS</div>
-        <Fighter p={rule.b} crowns={b[rule.b] ?? 0} king={rule.b === king} serves={server === rule.b} onTap={() => void tap(rule.b)} />
+        <Fighter p={rule.b} crowns={b[rule.b] ?? 0} king={rule.b === king} serves={server === rule.b} side="right" onTap={() => void tap(rule.b)} />
       </div>
     </div>
   );
 }
 
+/** Tischtennis-Kelle: roter Belag, Holzgriff */
+function PaddleIcon() {
+  return (
+    <svg viewBox="0 0 100 150" aria-hidden="true">
+      <rect x="40" y="84" width="20" height="60" rx="7" fill="#b9793d" stroke="#6e4220" strokeWidth="3" />
+      <rect x="44" y="96" width="12" height="40" rx="4" fill="#d79a5c" />
+      <circle cx="50" cy="50" r="45" fill="#d93a32" stroke="#7d1712" strokeWidth="4" />
+      <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="3" />
+      <ellipse cx="34" cy="32" rx="14" ry="8" fill="rgba(255,255,255,.28)" transform="rotate(-35 34 32)" />
+    </svg>
+  );
+}
+
 /** Ein Finalist im Showdown: großes freigestelltes Bild ohne Kachel, darunter der Spitzname */
-function Fighter({ p, crowns, king, serves, onTap }: { p: string; crowns: number; king: boolean; serves: boolean; onTap: () => void }) {
+function Fighter({ p, crowns, king, serves, side, onTap }: {
+  p: string; crowns: number; king: boolean; serves: boolean; side: 'left' | 'right'; onTap: () => void;
+}) {
   const { name, avatar, busy } = useApp();
   const img = avatar(p);
   return (
     <button className="tm-fighter" onClick={onTap} disabled={busy}>
       <span className="tm-fighter-art">
         {img ? <img src={img} alt="" /> : <span className="tm-ghost">{name(p).slice(0, 2)}</span>}
+        {serves && <span className={`tm-serve-paddle ${side}`}><PaddleIcon /></span>}
       </span>
       <span className="tm-fighter-name">{name(p)}</span>
       <span className="tm-fighter-meta">
