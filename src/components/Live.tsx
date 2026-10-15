@@ -5,12 +5,18 @@ import type { NewEvent, Pause, Round } from '../domain/types';
 import { CrownIcon, Dot, WaveIcon, plural, useApp } from './ui';
 
 export function Live() {
-  const { data } = useApp();
+  const { data, canWrite, openTableMode } = useApp();
   const pa = openPause(data.pauses);
   if (!pa) return <StartPause key="pause" />;
   const r = currentRound(pa);
   return (
     <>
+      {/* Nur auf großen Bildschirmen im Querformat sichtbar (Laptop, Tablet), siehe .table-mode-entry */}
+      {canWrite && (
+        <button className="btn table table-mode-entry" onClick={openTableMode}>
+          Tisch-Modus öffnen <span className="sub">große Kacheln zum Antippen am Tisch</span>
+        </button>
+      )}
       <Standings pa={pa} />
       {r ? <RunningRound pa={pa} r={r} /> : <RoundSetup key={`${pa.id}-${pa.rounds.length}`} pa={pa} />}
     </>

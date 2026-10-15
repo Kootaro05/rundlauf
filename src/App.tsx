@@ -7,6 +7,7 @@ import { Players } from './components/Players';
 import { CrownIcon, Ctx, type AppCtx } from './components/ui';
 import { Admin } from './components/Admin';
 import { InvitePage } from './components/InvitePage';
+import { TableMode } from './components/TableMode';
 import { checkEvent, currentRound, nextSeq, openPause, roundInfo } from './domain/game';
 import { loadPendingInvite, redeemPendingInvite } from './lib/invite';
 import { fmtTime } from './domain/periods';
@@ -300,6 +301,11 @@ export default function App() {
       refreshPrivate,
       openProfile,
       closeProfile,
+      openTableMode: () => {
+        go({ tab: 'table', player: null });
+        // Vollbild geht nur direkt aus einem Klick heraus; wo es nicht erlaubt ist, bleibt es beim Fenster
+        void document.documentElement.requestFullscreen?.().catch(() => {});
+      },
       // Das eigene Profil, der Admin alle
       canEditPlayer: (id) => isAdmin || (isMember && id === session?.playerId),
       name: (id) => byId.get(id)?.name ?? 'Unbekannt',
@@ -307,10 +313,25 @@ export default function App() {
       avatar: (id) => priv.info[id]?.avatarUrl ?? null,
       color: (id) => `var(--c${Math.max(0, order.indexOf(id)) % 8})`,
     };
-  }, [data, backend, session, busy, run, toast, addEvent, undo, redo, redoStack, isMember, isAdmin, priv, refreshPrivate, openProfile, closeProfile]);
+  }, [data, backend, session, busy, run, toast, addEvent, undo, redo, redoStack, isMember, isAdmin, priv, refreshPrivate, openProfile, closeProfile, go]);
 
   const pa = data ? openPause(data.pauses) : null;
   const r = currentRound(pa);
+
+  // Tisch-Modus: Vollbild ohne Kopfzeile und Reiter
+  if (tab === 'table')
+    return (
+      <>
+        {ctx ? (
+          <Ctx.Provider value={ctx}>
+            <TableMode onExit={() => go({ tab: 'live', player: null }, true)} />
+          </Ctx.Provider>
+        ) : (
+          <div className="tm"><div className="tm-center"><p className="tm-sub">Lade Daten …</p></div></div>
+        )}
+        {msg && <div className="toast" role="status">{msg}</div>}
+      </>
+    );
 
   return (
     <>

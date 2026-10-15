@@ -1,4 +1,4 @@
-export type Tab = 'live' | 'dash' | 'hist' | 'players' | 'admin' | 'invite';
+export type Tab = 'live' | 'dash' | 'hist' | 'players' | 'admin' | 'invite' | 'table';
 
 /** Welche Rubrik offen ist, in der Rubrik Spieler ggf. welches Profil, bei einer Einladung der Code */
 export interface Route {
@@ -8,7 +8,7 @@ export interface Route {
 }
 
 const SLUG: Record<Tab, string> = {
-  live: 'live', dash: 'dashboard', hist: 'verlauf', players: 'spieler', admin: 'admin', invite: 'einladung',
+  live: 'live', dash: 'dashboard', hist: 'verlauf', players: 'spieler', admin: 'admin', invite: 'einladung', table: 'tisch',
 };
 
 /** "#/spieler/<id>" → { tab: 'players', player: id }, "#/einladung/<code>" → { tab: 'invite', token } */

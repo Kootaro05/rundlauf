@@ -253,8 +253,6 @@ function Awards({ rows, label, comeback }: { rows: PlayerStats[]; label: string;
   if (fg?.siege) aw.push(['Finalgott', fg.p, `${fg.siege} von ${fg.finals} Finals gewonnen`]);
   const kg = pick((x) => x.koenig);
   if (kg?.koenig) aw.push(['Dauerkönig', kg.p, `${plural(kg.koenig, 'Pause', 'Pausen')} als König beendet`]);
-  const sg = pick((x) => x.pausen);
-  if (sg?.pausen) aw.push(['Stammgast', sg.p, `${plural(sg.pausen, 'Pause', 'Pausen')} dabei`]);
 
   if (!aw.length) return null;
   return (

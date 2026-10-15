@@ -20,6 +20,11 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
 - **Live:** Pause und Runden starten, Fehler antippen (Schwimmer, Krone setzen oder raus), Finale mit Aufschlagregel,
   Rückgängig und Wiederholen für die laufende Pause (Wiederholen auf dem eigenen Gerät, bis jemand etwas Neues einträgt).
   Neue Spieler lassen sich spontan mit Spitzname anlegen.
+- **Tisch-Modus** (`#/tisch`, Knopf in Live, nur auf Laptop/Tablet im Querformat): Vollbild mit großen Spielerkacheln
+  für einen Touch-Laptop am Tischrand. Antippen = Fehler (Schwimmer, raus oder große Wahl Krone/Raus), Finale mit
+  Aufschlagregel und Siegesanzeige. Beim Öffnen und nach jedem Finale startet automatisch eine Runde mit denselben
+  Spielern. Schließen (✕) bricht eine noch leere Runde ab; eine Runde mit Einträgen läuft normal weiter.
+  Pause starten/beenden und Spieler ändern bleiben in der normalen Ansicht.
 - **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
   Runden und Pausen starten geht nur online. Die App startet auch ohne Netz mit dem zuletzt geladenen Stand.
 - **Dashboard:** Rekorde pro Tag, Woche, Semester und insgesamt, Tabelle mit Quoten, Kronen-Kurve, Duelle (Finalbilanz

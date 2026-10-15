@@ -37,6 +37,8 @@ export interface AppCtx {
   avatar: (id: string) => string | null;
   openProfile: (id: string) => void;
   closeProfile: () => void;
+  /** Öffnet den Tisch-Modus im Vollbild (Laptop/Tablet am Tisch) */
+  openTableMode: () => void;
 }
 
 export const Ctx = createContext<AppCtx | null>(null);

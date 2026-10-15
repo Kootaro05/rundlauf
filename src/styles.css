@@ -304,3 +304,101 @@ select { font: inherit; color: var(--ink); background: var(--surface-2); border:
   .sheet { animation: pop .15s ease-out }
   @keyframes pop { from { transform: scale(.98); opacity: .6 } to { transform: none; opacity: 1 } }
 }
+
+/* ---------------------------------------------------------------------------
+   Tisch-Modus (#/tisch): Vollbild für Laptop/Tablet am Tischrand, große Kacheln
+   --------------------------------------------------------------------------- */
+.btn.table { background: var(--table); color: var(--table-ink); border-color: var(--table) }
+/* Einstieg nur auf großen Bildschirmen im Querformat, am Handy nie */
+.table-mode-entry { display: none; justify-self: start; gap: 10px }
+.table-mode-entry .sub { color: inherit; opacity: .75; font-weight: 400 }
+@media (min-width: 900px) and (orientation: landscape) { .table-mode-entry { display: inline-flex } }
+
+.tm {
+  position: fixed; inset: 0; z-index: 30; display: grid; grid-template-rows: auto minmax(0, 1fr);
+  background: #070d13; color: #fff; font-family: var(--f-body);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+.tm button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent }
+.tm-top { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08) }
+.tm-round { font-family: var(--f-display); font-weight: 800; font-size: 34px; text-transform: uppercase; display: flex; gap: 14px; align-items: center; white-space: nowrap }
+.tm-pot { display: inline-flex; gap: 6px; align-items: center; color: #f0c24f }
+.tm-actions { flex: 1; display: flex; gap: 10px; justify-content: flex-end; min-width: 0 }
+.tm-undo { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 12px; padding: 12px 18px; font-size: 18px; font-weight: 600; min-height: 56px; display: inline-flex; gap: 10px; align-items: center; white-space: nowrap; overflow: hidden }
+.tm-undo span { font-weight: 400; opacity: .75; overflow: hidden; text-overflow: ellipsis }
+.tm-undo:disabled { opacity: .5 }
+.tm-exit { background: none; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; width: 48px; height: 48px; font-size: 20px; opacity: .6 }
+.tm-body { min-height: 0; padding: 14px }
+.tm-center { height: 100%; display: grid; place-content: center; justify-items: center; gap: 16px; text-align: center }
+.tm-big { background: var(--ball); color: #fff; border: 0; border-radius: 18px; padding: 28px 48px; font-family: var(--f-display); font-weight: 800; font-size: 44px; text-transform: uppercase }
+.tm-sub { font-size: 15px; opacity: .7; margin: 0 }
+
+.tm-round-view { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px }
+.tm-grid { display: grid; gap: 14px; grid-auto-rows: minmax(0, 1fr); min-height: 0 }
+.tm-tile { position: relative; border-radius: 20px; overflow: hidden; min-height: 0; border: 0 }
+.tm-player {
+  --pc: var(--c0);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; text-align: left; padding: 0;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,.05) 0 2px, transparent 2px 16px),
+    linear-gradient(125deg, color-mix(in srgb, var(--pc) 80%, #000) 0%, color-mix(in srgb, var(--pc) 35%, #04070b) 70%, #04070b 100%);
+  transition: transform .08s ease;
+}
+.tm-player:active { transform: scale(.97) }
+.tm-player:disabled { cursor: progress }
+.tm-art { position: absolute; right: 4%; bottom: 0; height: 88%; aspect-ratio: 4 / 5; pointer-events: none }
+.tm-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; filter: drop-shadow(0 10px 20px rgba(0,0,0,.5)) }
+.tm-ghost { position: absolute; right: 0; bottom: 4%; font-family: var(--f-display); font-weight: 800; font-size: clamp(60px, 12vh, 160px); line-height: .8; text-transform: uppercase; opacity: .18 }
+.tm-info { position: relative; z-index: 1; display: grid; gap: 6px; padding: 18px 20px; align-self: stretch; align-content: space-between; min-width: 0 }
+.tm-tags { display: flex; gap: 6px; flex-wrap: wrap }
+.tm-tag { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 4px 10px; font-size: 14px; font-weight: 600; display: inline-flex; gap: 5px; align-items: center }
+.tm-tag-gold { color: #f0c24f; border-color: rgba(240,194,79,.5) }
+.tm-tag-hot { background: var(--ball); border-color: var(--ball) }
+.tm-name { font-family: var(--f-display); font-weight: 800; font-size: clamp(30px, 5.5vh, 72px); line-height: .9; text-transform: uppercase; text-shadow: 0 2px 14px rgba(0,0,0,.6); overflow-wrap: anywhere }
+.tm-crowns { font-family: var(--f-mono); font-size: clamp(16px, 2.4vh, 26px); font-weight: 600; color: #f0c24f; display: flex; gap: 6px; align-items: center }
+.tm-hint { font-family: var(--f-body); font-weight: 400; color: rgba(255,255,255,.65); font-size: .7em }
+
+/* Wahl Krone oder raus: Kachel teilt sich in zwei große Hälften */
+.tm-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 0; outline: 3px solid #f0c24f; outline-offset: -3px }
+.tm-crown, .tm-out { border: 0; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; padding: 10px }
+.tm-crown { background: linear-gradient(110deg, #8a6200 0%, #f0c24f 45%, #fff3c4 50%, #f0c24f 55%, #8a6200 100%); background-size: 250% 100%; color: #2a1c00 }
+.tm-out { background: #8c2a20; color: #fff }
+.tm-choice-label { font-family: var(--f-display); font-weight: 800; font-size: clamp(28px, 5vh, 60px); text-transform: uppercase; line-height: 1 }
+.tm-crown .tm-sub { opacity: .8 }
+.tm-crown-icon { font-size: clamp(40px, 9vh, 110px); line-height: 1 }
+@media (prefers-reduced-motion: no-preference) {
+  .tm-choice { animation: tm-pop .18s ease-out }
+  .tm-crown { animation: tm-shimmer 1.6s linear infinite }
+  .tm-crown-icon { animation: tm-bounce 1s ease-in-out infinite }
+  @keyframes tm-pop { from { transform: scale(.94); opacity: .4 } to { transform: none; opacity: 1 } }
+  @keyframes tm-shimmer { from { background-position: 100% 0 } to { background-position: -150% 0 } }
+  @keyframes tm-bounce { 0%, 100% { transform: translateY(0) rotate(-6deg) } 50% { transform: translateY(-10%) rotate(6deg) } }
+}
+
+.tm-out-strip { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 16px; opacity: .7 }
+.tm-out-chip { background: rgba(255,255,255,.08); border-radius: 8px; padding: 6px 12px; text-decoration: line-through }
+
+/* Finale: zwei riesige Hälften */
+.tm-final { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px }
+.tm-final-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap }
+.tm-final-title { font-family: var(--f-display); font-weight: 800; font-size: 40px; text-transform: uppercase; color: #f0c24f }
+.tm-final-ask { font-size: 22px; font-weight: 600 }
+.tm-final-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height: 0 }
+.tm-final-grid .tm-name { font-size: clamp(40px, 8vh, 110px) }
+
+/* Siegesanzeige nach dem Finale */
+.tm-celebrate { --pc: var(--c0); position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(4,7,11,.75); pointer-events: none }
+.tm-celebrate-card {
+  display: grid; justify-items: center; gap: 8px; padding: 30px 60px; border-radius: 24px; border: 3px solid #f0c24f;
+  background: linear-gradient(125deg, color-mix(in srgb, var(--pc) 80%, #000), #04070b);
+  box-shadow: 0 0 60px rgba(240,194,79,.45);
+}
+.tm-celebrate-card img { height: 30vh; aspect-ratio: 4 / 5; object-fit: contain; object-position: bottom }
+.tm-celebrate-crown { color: #f0c24f; font-size: 80px; line-height: 1 }
+.tm-celebrate-pot { font-family: var(--f-display); font-weight: 800; font-size: 64px; color: #f0c24f; display: flex; gap: 10px; align-items: center }
+@media (prefers-reduced-motion: no-preference) {
+  .tm-celebrate-card { animation: tm-win .5s cubic-bezier(.2, 1.4, .4, 1) both }
+  .tm-celebrate-crown { animation: tm-bounce 1s ease-in-out infinite }
+  @keyframes tm-win { from { transform: scale(.6); opacity: 0 } to { transform: none; opacity: 1 } }
+}
