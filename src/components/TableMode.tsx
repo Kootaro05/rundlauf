@@ -195,8 +195,8 @@ function RoundView({ pa, r }: { pa: Pause; r: Round }) {
   );
 }
 
-function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap, badge }: {
-  p: string; crowns: number; king: boolean; schwimmer: boolean; setThisRound: number; hint?: string; onTap: () => void; badge?: string;
+function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap }: {
+  p: string; crowns: number; king: boolean; schwimmer: boolean; setThisRound: number; hint?: string; onTap: () => void;
 }) {
   const { name, avatar, color, busy } = useApp();
   const img = avatar(p);
@@ -205,7 +205,6 @@ function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap, bad
       <span className="tm-art">{img ? <img src={img} alt="" /> : <span className="tm-ghost">{name(p).slice(0, 2)}</span>}</span>
       <span className="tm-info">
         <span className="tm-tags">
-          {badge && <span className="tm-tag tm-tag-hot">{badge}</span>}
           {king && <span className="tm-tag tm-tag-gold"><CrownIcon /> König</span>}
           {schwimmer && <span className="tm-tag"><WaveIcon /> Schwimmer</span>}
           {setThisRound > 0 && <span className="tm-tag tm-tag-gold">×{setThisRound} gesetzt</span>}
@@ -220,7 +219,7 @@ function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap, bad
 // ---------------------------------------------------------------------------
 
 function FinalView({ pa, r, onWon }: { pa: Pause; r: Round; onWon: (winner: string, pot: number) => void }) {
-  const { addEvent, name } = useApp();
+  const { addEvent, name, color } = useApp();
   const rule = serveRule(pa, r);
   const i = roundInfo(r);
   const b = balances(pa);
@@ -241,21 +240,41 @@ function FinalView({ pa, r, onWon }: { pa: Pause; r: Round; onWon: (winner: stri
     if (ok) onWon(p, i.pot);
   };
 
+  // Showdown: links und rechts die Finalisten frei stehend, dazwischen VS, oben mittig der Pot
   return (
-    <div className="tm-final">
-      <div className="tm-final-head">
-        <span className="tm-final-title">Finale · {plural(i.pot, 'Krone', 'Kronen')} im Pot</span>
-        <span className="tm-final-ask">
+    <div className="tm-showdown" style={{ '--ca': color(rule.a), '--cb': color(rule.b) } as CSSProperties}>
+      <div className="tm-showdown-head">
+        <span className="tm-showdown-label">Finale</span>
+        <span className="tm-showdown-pot"><CrownIcon /> {i.pot}</span>
+        <span className="tm-showdown-ask">
           {askServe ? 'Gleichstand: Angabe ausspielen. Wer hat sie gewonnen?' : 'Wer hat das Finale gewonnen?'}
         </span>
       </div>
-      <div className="tm-final-grid">
-        {[rule.a, rule.b].map((p) => (
-          <PlayerTile key={p} p={p} crowns={b[p] ?? 0} king={p === king} schwimmer={false} setThisRound={0}
-            badge={server === p ? 'schlägt auf' : undefined} onTap={() => void tap(p)} />
-        ))}
+      <div className="tm-showdown-stage">
+        <Fighter p={rule.a} crowns={b[rule.a] ?? 0} king={rule.a === king} serves={server === rule.a} onTap={() => void tap(rule.a)} />
+        <div className="tm-vs" aria-hidden="true">VS</div>
+        <Fighter p={rule.b} crowns={b[rule.b] ?? 0} king={rule.b === king} serves={server === rule.b} onTap={() => void tap(rule.b)} />
       </div>
     </div>
+  );
+}
+
+/** Ein Finalist im Showdown: großes freigestelltes Bild ohne Kachel, darunter der Spitzname */
+function Fighter({ p, crowns, king, serves, onTap }: { p: string; crowns: number; king: boolean; serves: boolean; onTap: () => void }) {
+  const { name, avatar, busy } = useApp();
+  const img = avatar(p);
+  return (
+    <button className="tm-fighter" onClick={onTap} disabled={busy}>
+      <span className="tm-fighter-art">
+        {img ? <img src={img} alt="" /> : <span className="tm-ghost">{name(p).slice(0, 2)}</span>}
+      </span>
+      <span className="tm-fighter-name">{name(p)}</span>
+      <span className="tm-fighter-meta">
+        <span className="tm-crowns"><CrownIcon /> {crowns}</span>
+        {king && <span className="tm-tag tm-tag-gold"><CrownIcon /> König</span>}
+        {serves && <span className="tm-tag tm-tag-hot">schlägt auf</span>}
+      </span>
+    </button>
   );
 }
 
