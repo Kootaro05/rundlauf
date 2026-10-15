@@ -111,7 +111,7 @@ function PlayersAdmin({ invites, reloadInvites }: { invites: Invite[]; reloadInv
                   <span className="pinfo">
                     <span className="row">
                       <b>{name(p.id)}</b>
-                      <span className={`tag ${acc?.linked ? 'gold' : ''}`}>{status}</span>
+                      <span className={`tag ${acc?.isAdmin ? 'admin' : acc?.linked ? 'gold' : ''}`}>{status}</span>
                       {p.hidden && <span className="tag">ausgeblendet</span>}
                     </span>
                     <span className="sub">{[realName(p.id), acc?.email].filter(Boolean).join(' · ') || 'keine weiteren Angaben'}</span>

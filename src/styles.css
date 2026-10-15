@@ -100,6 +100,7 @@ input[type=text], input[type=email] { font: inherit; color: var(--ink); backgrou
 .stand.king .c { color: var(--ink) }
 .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: var(--surface); color: var(--muted); display: inline-flex; gap: 3px; align-items: center; border: 1px solid var(--line) }
 .tag.gold { background: var(--gold-soft); color: var(--gold); border-color: transparent }
+.tag.admin { background: var(--danger-soft); color: var(--danger); border-color: transparent }
 
 /* Runde */
 .roundhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap }
