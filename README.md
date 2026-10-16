@@ -206,7 +206,9 @@ So verhält sich die App:
 - Höchstens 15.000 neue Zeichen pro Gerät und Tag, danach Browser-Stimme.
 - Guthaben leer, Schlüssel fehlt oder kein Zugriff: eine Stunde lang Browser-Stimme, dann neuer Versuch.
   Kommentar aus- und einschalten probiert es sofort wieder (z. B. nach dem Aufladen).
-- Antwortet ElevenLabs nicht innerhalb von 1,5 Sekunden oder ist kein Netz da, spricht für diesen Satz die Browser-Stimme.
+- Antwortet ElevenLabs nicht innerhalb von 2 Sekunden, spricht für diesen Satz die Browser-Stimme; die Anfrage läuft
+  aber weiter und der Satz kommt beim nächsten Mal aus dem Speicher. Mit Kommentar hält die App die Funktion wach.
+- Neben „Browser-Stimme“ steht am Knopf der Grund, z. B. „zu langsam“, „Guthaben leer“ oder „nicht eingerichtet“.
 - Wird die Stimme gewechselt, werden die Sätze einmal neu erzeugt.
 
 ### Wer darf was?

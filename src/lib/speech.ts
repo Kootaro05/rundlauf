@@ -14,8 +14,8 @@ const DAY_KEY = 'rundlauf-stimme-tag';
 
 const CACHE = 'rundlauf-stimme-v1';
 const DAILY_LIMIT = 15000;
-/** Länger wartet der Kommentar nicht, sonst hinkt er dem Spiel hinterher */
-const TIMEOUT = 1500;
+/** Länger wartet der Kommentar nicht, sonst hinkt er dem Spiel hinterher (die Anfrage läuft trotzdem weiter) */
+const TIMEOUT = 2000;
 const RETRY_AFTER = 60 * 60 * 1000;
 
 export type VoiceSource = 'eleven' | 'browser';
@@ -107,40 +107,81 @@ async function fromCache(text: string): Promise<Blob | null> {
   return hit ? hit.blob() : null;
 }
 
-/** Holt das Audio von ElevenLabs; null heißt: diesmal die Browser-Stimme nehmen */
-async function fromEleven(text: string): Promise<Blob | null> {
-  if (Number(read(PAUSE_KEY) ?? 0) > Date.now() || !navigator.onLine) return null;
-  if (charsToday() + text.length > DAILY_LIMIT) return null;
-  const token = await tokenGetter();
-  if (!token) return null;
+/** Ergebnis einer Ansage: welche Stimme gesprochen hat und, bei der Browser-Stimme, warum */
+export interface VoiceResult { source: VoiceSource; reason?: string }
 
-  const ctrl = new AbortController();
-  const timer = window.setTimeout(() => ctrl.abort(), TIMEOUT);
+const REASONS: Record<number, string> = {
+  400: 'Text abgelehnt',
+  401: 'nicht angemeldet',
+  402: 'Guthaben leer',
+  403: 'kein Mitglied',
+  404: 'Funktion fehlt',
+  503: 'nicht eingerichtet',
+};
+
+/** Pause bis zu einem Zeitpunkt, mit Grund: "1729000000000|Guthaben leer" */
+function pausedReason(): string | null {
+  const [until, reason] = (read(PAUSE_KEY) ?? '').split('|');
+  return Number(until) > Date.now() ? reason || 'pausiert' : null;
+}
+
+type Fetched = { blob: Blob } | { reason: string };
+
+/** Fragt die Server-Funktion. Das Ergebnis wird immer gespeichert, auch wenn die Ansage nicht darauf gewartet hat. */
+async function request(text: string, token: string): Promise<Fetched> {
   try {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ text }),
-      signal: ctrl.signal,
     });
     if (!res.ok) {
+      const reason = REASONS[res.status] ?? `ElevenLabs-Fehler ${res.status}`;
       // Nicht eingerichtet, Guthaben leer, kein Zugriff: eine Stunde Ruhe, dann neuer Versuch
-      if ([401, 402, 403, 404, 503].includes(res.status)) write(PAUSE_KEY, String(Date.now() + RETRY_AFTER));
-      return null;
+      if (res.status in REASONS && res.status !== 400) write(PAUSE_KEY, `${Date.now() + RETRY_AFTER}|${reason}`);
+      return { reason };
     }
     const blob = await res.blob();
     write(DAY_KEY, `${today()}:${charsToday() + text.length}`);
     const voice = res.headers.get('X-Voice');
     if (voice) write(VOICE_KEY, voice);
     if ('caches' in window) {
-      void caches.open(CACHE).then((c) => c.put(cacheKey(text), new Response(blob, { headers: { 'Content-Type': 'audio/mpeg' } })));
+      await caches.open(CACHE).then((c) => c.put(cacheKey(text), new Response(blob, { headers: { 'Content-Type': 'audio/mpeg' } })));
     }
-    return blob;
+    return { blob };
   } catch {
-    return null; // Zeitüberschreitung oder Netzfehler
-  } finally {
-    window.clearTimeout(timer);
+    return { reason: 'kein Netz' };
   }
+}
+
+// Laufende Anfragen, damit derselbe Satz nicht doppelt bezahlt wird
+const pending = new Map<string, Promise<Fetched>>();
+
+/**
+ * Holt das Audio von ElevenLabs. Dauert es zu lange, spricht diesmal die Browser-Stimme; die Anfrage
+ * läuft aber weiter und landet im Speicher, sodass der Satz beim nächsten Mal sofort klappt.
+ */
+async function fromEleven(text: string): Promise<Fetched> {
+  const paused = pausedReason();
+  if (paused) return { reason: paused };
+  if (!navigator.onLine) return { reason: 'kein Netz' };
+  if (charsToday() + text.length > DAILY_LIMIT) return { reason: 'Tageslimit erreicht' };
+  const token = await tokenGetter();
+  if (!token) return { reason: 'nicht angemeldet' };
+
+  let job = pending.get(text);
+  if (!job) {
+    job = request(text, token).finally(() => pending.delete(text));
+    pending.set(text, job);
+  }
+  const slow = new Promise<Fetched>((ok) => window.setTimeout(() => ok({ reason: 'zu langsam' }), TIMEOUT));
+  return Promise.race([job, slow]);
+}
+
+/** Weckt die Server-Funktion vorab auf, damit die erste Ansage nicht auf den Kaltstart wartet */
+export function warmVoice() {
+  if (pausedReason() || !navigator.onLine) return;
+  void fetch('/api/tts', { method: 'GET' }).catch(() => {});
 }
 
 let turn = 0;
@@ -149,28 +190,29 @@ let turn = 0;
  * Sagt den Satz an. Ein noch laufender Satz wird abgebrochen, damit der Kommentar nicht hinterherhinkt.
  * Gibt zurück, welche Stimme gesprochen hat.
  */
-export async function speak(text: string): Promise<VoiceSource> {
+export async function speak(text: string): Promise<VoiceResult> {
   const mine = ++turn;
   stop();
-  let blob: Blob | null = null;
+  let got: Fetched;
   try {
-    blob = (await fromCache(text)) ?? (await fromEleven(text));
+    const cached = await fromCache(text);
+    got = cached ? { blob: cached } : await fromEleven(text);
   } catch {
-    blob = null;
+    got = { reason: 'Fehler' };
   }
-  if (mine !== turn) return blob ? 'eleven' : 'browser'; // inzwischen kam schon die nächste Ansage
-  if (blob) {
+  if (mine !== turn) return 'blob' in got ? { source: 'eleven' } : { source: 'browser', reason: got.reason };
+  if ('blob' in got) {
     const a = audio();
     if (playingUrl) URL.revokeObjectURL(playingUrl);
-    playingUrl = URL.createObjectURL(blob);
+    playingUrl = URL.createObjectURL(got.blob);
     a.src = playingUrl;
     try {
       await a.play();
-      return 'eleven';
+      return { source: 'eleven' };
     } catch {
-      /* Abspielen blockiert: dann eben die Browser-Stimme */
+      got = { reason: 'Abspielen blockiert' };
     }
   }
   browserSpeak(text);
-  return 'browser';
+  return { source: 'browser', reason: got.reason };
 }

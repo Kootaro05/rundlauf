@@ -11,6 +11,11 @@ const DEFAULT_MODEL = 'eleven_v4_turbo';
 
 const fail = (status: number, error: string) => Response.json({ error }, { status });
 
+/** Nur zum Aufwärmen: die App ruft das vorab auf, damit die erste Ansage nicht auf den Kaltstart wartet */
+export async function GET() {
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+}
+
 export async function POST(req: Request) {
   const key = env.ELEVENLABS_API_KEY;
   const voice = env.ELEVENLABS_VOICE_ID;

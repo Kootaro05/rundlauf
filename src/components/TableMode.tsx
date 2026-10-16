@@ -3,7 +3,7 @@ import { balances, crownCheck, currentRound, kingOf, nextSeq, openPause, roundIn
 import { lineForEvent, lineForFinal, render, type Line } from '../domain/commentary';
 import type { NewEvent, Pause, Round } from '../domain/types';
 import { HORN_TIMES, hhmm, playHorn, unlockHorn } from '../lib/horn';
-import { configureVoice, setSpeechEnabled, speak, speechEnabled, speechSupported, unlockAudio, type VoiceSource } from '../lib/speech';
+import { configureVoice, setSpeechEnabled, speak, speechEnabled, speechSupported, unlockAudio, warmVoice, type VoiceResult } from '../lib/speech';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
 
 /** So lange bleibt die Wahl "Krone oder raus" offen, wenn niemand tippt */
@@ -24,8 +24,16 @@ export function TableMode({ onExit }: { onExit: () => void }) {
   const [celebrate, setCelebrate] = useState<{ p: string; pot: number } | null>(null);
   const starting = useRef(false);
   const [voice, setVoice] = useState(speechEnabled);
-  const [source, setSource] = useState<VoiceSource | null>(null);
-  const say = useCommentary(pa, voice, setSource);
+  const [voiceResult, setVoiceResult] = useState<VoiceResult | null>(null);
+  const say = useCommentary(pa, voice, setVoiceResult);
+
+  // Mit Kommentar die Server-Funktion wach halten, damit ElevenLabs schnell genug antwortet
+  useEffect(() => {
+    if (!voice) return;
+    warmVoice();
+    const t = window.setInterval(warmVoice, 4 * 60 * 1000);
+    return () => window.clearInterval(t);
+  }, [voice]);
 
   useWakeLock();
   const now = useClock();
@@ -38,7 +46,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
     if (!voice) {
       unlockAudio();
       unlockHorn();
-      void speak('Kommentator an.').then(setSource);
+      void speak('Kommentator an.').then(setVoiceResult);
     }
   };
 
@@ -91,7 +99,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
 
   return (
     <div className="tm">
-      <TopBar pa={pa} r={r} now={now} voice={voice} fallback={voice && source === 'browser'} onVoice={toggleVoice} onExit={() => void exit()} />
+      <TopBar pa={pa} r={r} now={now} voice={voice} fallback={voice && voiceResult?.source === 'browser' ? voiceResult.reason ?? 'unbekannt' : null} onVoice={toggleVoice} onExit={() => void exit()} />
       <div className="tm-body">{body}</div>
       {celebrate && <Celebration {...celebrate} />}
     </div>
@@ -102,7 +110,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
  * Kommentator: sagt neu eingetragene Ereignisse der laufenden Pause an. Was beim Öffnen schon
  * da war, bleibt still; Rückgängig sagt nichts. Gibt eine Funktion für zusätzliche Ansagen zurück.
  */
-function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceSource) => void) {
+function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceResult) => void) {
   const { name } = useApp();
   const seen = useRef<Set<string> | null>(null);
   const lastText = useRef<string>();
@@ -177,7 +185,7 @@ function SpeakerIcon({ on }: { on: boolean }) {
 // ---------------------------------------------------------------------------
 
 function TopBar({ pa, r, now, voice, fallback, onVoice, onExit }: {
-  pa: Pause | null; r: Round | null; now: Date; voice: boolean; fallback: boolean; onVoice: () => void; onExit: () => void;
+  pa: Pause | null; r: Round | null; now: Date; voice: boolean; fallback: string | null; onVoice: () => void; onExit: () => void;
 }) {
   const { undo, redo, redoNext, busy, run, backend, name } = useApp();
   const last = pa?.rounds.at(-1);
@@ -218,7 +226,7 @@ function TopBar({ pa, r, now, voice, fallback, onVoice, onExit }: {
         <button className={`tm-voice${voice ? ' on' : ''}`} aria-pressed={voice} onClick={onVoice}
           title={voice ? 'Kommentator ausschalten' : 'Kommentator einschalten'}>
           <SpeakerIcon on={voice} /> <span>Kommentar</span>
-          {fallback && <small title="ElevenLabs ist gerade nicht erreichbar, nicht eingerichtet oder das Guthaben ist leer">Browser-Stimme</small>}
+          {fallback && <small title={`Browser-Stimme, weil ElevenLabs gerade nicht genutzt wird: ${fallback}`}>Browser-Stimme · {fallback}</small>}
         </button>
       )}
         <button className="tm-exit" aria-label="Tisch-Modus schließen" onClick={onExit}>✕</button>
