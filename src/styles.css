@@ -384,7 +384,7 @@ select { font: inherit; color: var(--ink); background: var(--surface-2); border:
 /* Schwimmer: Wasser steht dem Spieler bis zur Brust, darüber das Wort als Wasserzeichen */
 .tm-player.is-schwimmer { box-shadow: inset 0 0 0 4px #4fb6f0, 0 0 26px rgba(79,182,240,.35) }
 .tm-water { position: absolute; left: 0; right: 0; bottom: 0; height: 42%; pointer-events: none; overflow: hidden }
-.tm-water-mark { position: absolute; right: 4%; bottom: 33%; transform: rotate(-6deg); transform-origin: right bottom; font-family: var(--f-display); font-weight: 800; font-size: clamp(30px, 6vh, 90px); line-height: 1; letter-spacing: .04em; text-transform: uppercase; color: rgba(210,240,255,.45); white-space: nowrap; pointer-events: none }
+.tm-water-mark { position: absolute; left: 50%; top: 16%; transform: translateX(-50%) rotate(-6deg); font-family: var(--f-display); font-weight: 800; font-size: clamp(34px, 7vh, 96px); letter-spacing: .04em; text-transform: uppercase; color: rgba(210,240,255,.4); white-space: nowrap; z-index: 2 }
 .tm-wave { position: absolute; left: 0; right: 0; bottom: 0; background-repeat: repeat-x; background-size: 220px 100%; z-index: 1 }
 .tm-wave-back { top: 6%; opacity: .55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3Cpath d='M0 12 Q25 0 50 12 T100 12 T150 12 T200 12 V100 H0Z' fill='%232f8fd0'/%3E%3C/svg%3E") }
 .tm-wave-front { top: 14%; opacity: .7; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3Cpath d='M0 12 Q25 24 50 12 T100 12 T150 12 T200 12 V100 H0Z' fill='%231d6fae'/%3E%3C/svg%3E") }

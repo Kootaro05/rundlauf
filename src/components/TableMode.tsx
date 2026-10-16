@@ -317,13 +317,11 @@ function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap }: {
       </span>
       {schwimmer && (
         // Wasserlinie mit Wellen über dem schwimmenden Spieler, dazu das Wort als Wasserzeichen
-        <>
-          <span className="tm-water" aria-hidden="true">
-            <span className="tm-wave tm-wave-back" />
-            <span className="tm-wave tm-wave-front" />
-          </span>
-          <span className="tm-water-mark" aria-hidden="true">Schwimmer</span>
-        </>
+        <span className="tm-water" aria-hidden="true">
+          <span className="tm-water-mark">Schwimmer</span>
+          <span className="tm-wave tm-wave-back" />
+          <span className="tm-wave tm-wave-front" />
+        </span>
       )}
       <span className="tm-info">
         <span className="tm-tags">
