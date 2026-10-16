@@ -44,10 +44,18 @@ export async function POST(req: Request) {
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    // Guthaben leer oder Limit erreicht: die App macht dann eine Weile mit der Browser-Stimme weiter
-    if (/quota|credit|limit/i.test(detail) || res.status === 402 || res.status === 429) return fail(402, 'quota');
     console.error('ElevenLabs', res.status, detail.slice(0, 300));
-    return fail(502, 'upstream');
+    // Fehlercode von ElevenLabs (z. B. voice_not_found) an die App weitergeben, damit er am Knopf steht
+    let code = String(res.status);
+    try {
+      const d = (JSON.parse(detail) as { detail?: { status?: string; code?: string } | string }).detail;
+      code = (typeof d === 'object' ? d?.status ?? d?.code : undefined) ?? code;
+    } catch {
+      /* keine JSON-Antwort */
+    }
+    // Nur echtes leeres Guthaben zählt als "quota"; die App macht dann eine Weile mit der Browser-Stimme weiter
+    if (/quota|credit/i.test(code) || /quota_exceeded|insufficient.credit/i.test(detail)) return fail(402, 'quota');
+    return Response.json({ error: 'upstream', code: code.slice(0, 60) }, { status: 502 });
   }
   return new Response(res.body, {
     headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Voice': voice },

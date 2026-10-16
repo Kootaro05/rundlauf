@@ -136,7 +136,8 @@ async function request(text: string, token: string): Promise<Fetched> {
       body: JSON.stringify({ text }),
     });
     if (!res.ok) {
-      const reason = REASONS[res.status] ?? `ElevenLabs-Fehler ${res.status}`;
+      const body = (await res.json().catch(() => null)) as { code?: string } | null;
+      const reason = REASONS[res.status] ?? `ElevenLabs: ${body?.code ?? res.status}`;
       // Nicht eingerichtet, Guthaben leer, kein Zugriff: eine Stunde Ruhe, dann neuer Versuch
       if (res.status in REASONS && res.status !== 400) write(PAUSE_KEY, `${Date.now() + RETRY_AFTER}|${reason}`);
       return { reason };
