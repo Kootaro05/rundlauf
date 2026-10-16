@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { balances, crownCheck, currentRound, kingOf, nextSeq, openPause, roundInfo, serveRule } from '../domain/game';
 import { lineForEvent, lineForFinal, render, type Line } from '../domain/commentary';
 import type { NewEvent, Pause, Round } from '../domain/types';
+import { HORN_TIMES, hhmm, playHorn, unlockHorn } from '../lib/horn';
 import { configureVoice, setSpeechEnabled, speak, speechEnabled, speechSupported, unlockAudio, type VoiceSource } from '../lib/speech';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
 
@@ -27,6 +28,8 @@ export function TableMode({ onExit }: { onExit: () => void }) {
   const say = useCommentary(pa, voice, setSource);
 
   useWakeLock();
+  const now = useClock();
+  useHorn(now, voice);
 
   const toggleVoice = () => {
     setSpeechEnabled(!voice);
@@ -34,6 +37,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
     // Der Tipp schaltet die Sprachausgabe frei (iPad/Safari reden erst nach einer Berührung)
     if (!voice) {
       unlockAudio();
+      unlockHorn();
       void speak('Kommentator an.').then(setSource);
     }
   };
@@ -87,7 +91,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
 
   return (
     <div className="tm">
-      <TopBar pa={pa} r={r} voice={voice} fallback={voice && source === 'browser'} onVoice={toggleVoice} onExit={() => void exit()} />
+      <TopBar pa={pa} r={r} now={now} voice={voice} fallback={voice && source === 'browser'} onVoice={toggleVoice} onExit={() => void exit()} />
       <div className="tm-body">{body}</div>
       {celebrate && <Celebration {...celebrate} />}
     </div>
@@ -132,6 +136,35 @@ function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceSo
   return say;
 }
 
+/** Aktuelle Uhrzeit, jede Sekunde neu */
+function useClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+  return now;
+}
+
+/**
+ * Signalhorn zu festen Uhrzeiten als Zeichen "das ist die letzte Runde". Nur mit eingeschaltetem
+ * Kommentator; es wird nichts beendet. Jede Uhrzeit spielt pro Tag höchstens einmal, auch nach Neuladen.
+ */
+function useHorn(now: Date, enabled: boolean) {
+  const minute = hhmm(now);
+  const key = `${now.toDateString()} ${minute}`;
+  useEffect(() => {
+    if (!enabled || !HORN_TIMES.includes(minute)) return;
+    try {
+      if (localStorage.getItem('rundlauf-horn') === key) return;
+      localStorage.setItem('rundlauf-horn', key);
+    } catch {
+      /* ohne Speicher verhindert schon die Abhängigkeit von "key" ein zweites Abspielen */
+    }
+    playHorn();
+  }, [key, minute, enabled]);
+}
+
 function SpeakerIcon({ on }: { on: boolean }) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -143,8 +176,8 @@ function SpeakerIcon({ on }: { on: boolean }) {
 
 // ---------------------------------------------------------------------------
 
-function TopBar({ pa, r, voice, fallback, onVoice, onExit }: {
-  pa: Pause | null; r: Round | null; voice: boolean; fallback: boolean; onVoice: () => void; onExit: () => void;
+function TopBar({ pa, r, now, voice, fallback, onVoice, onExit }: {
+  pa: Pause | null; r: Round | null; now: Date; voice: boolean; fallback: boolean; onVoice: () => void; onExit: () => void;
 }) {
   const { undo, redo, redoNext, busy, run, backend, name } = useApp();
   const last = pa?.rounds.at(-1);
@@ -169,7 +202,9 @@ function TopBar({ pa, r, voice, fallback, onVoice, onExit }: {
       <div className="tm-round">
         {r ? <>Runde {r.number} <span className="tm-pot"><CrownIcon /> {roundInfo(r).pot}</span></> : 'Tisch-Modus'}
       </div>
-      <div className="tm-actions">
+      <time className="tm-clock" dateTime={now.toISOString()}>{hhmm(now)}</time>
+      <div className="tm-top-right">
+        <div className="tm-actions">
         {lastEvent && (
           <button className="tm-undo" disabled={busy} onClick={doUndo}>
             ↶ Rückgängig <span>{describe(lastEvent, name)}</span>
@@ -186,7 +221,8 @@ function TopBar({ pa, r, voice, fallback, onVoice, onExit }: {
           {fallback && <small title="ElevenLabs ist gerade nicht erreichbar, nicht eingerichtet oder das Guthaben ist leer">Browser-Stimme</small>}
         </button>
       )}
-      <button className="tm-exit" aria-label="Tisch-Modus schließen" onClick={onExit}>✕</button>
+        <button className="tm-exit" aria-label="Tisch-Modus schließen" onClick={onExit}>✕</button>
+      </div>
     </header>
   );
 }
@@ -273,15 +309,27 @@ function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap }: {
   const { name, avatar, color, busy } = useApp();
   const img = avatar(p);
   return (
-    <button className="tm-tile tm-player" style={{ '--pc': color(p) } as CSSProperties} onClick={onTap} disabled={busy}>
-      <span className="tm-art">{img ? <img src={img} alt="" /> : <span className="tm-ghost">{name(p).slice(0, 2)}</span>}</span>
+    <button className={`tm-tile tm-player${king ? ' is-king' : ''}${schwimmer ? ' is-schwimmer' : ''}`}
+      style={{ '--pc': color(p) } as CSSProperties} onClick={onTap} disabled={busy}>
+      <span className="tm-art">
+        {img ? <img src={img} alt="" /> : <span className="tm-ghost">{name(p).slice(0, 2)}</span>}
+        {king && <span className="tm-king-crown" aria-hidden="true"><CrownIcon /></span>}
+      </span>
+      {schwimmer && (
+        // Wasserlinie mit Wellen über dem schwimmenden Spieler, dazu das Wort als Wasserzeichen
+        <span className="tm-water" aria-hidden="true">
+          <span className="tm-water-mark">Schwimmer</span>
+          <span className="tm-wave tm-wave-back" />
+          <span className="tm-wave tm-wave-front" />
+        </span>
+      )}
       <span className="tm-info">
         <span className="tm-tags">
           {king && <span className="tm-tag tm-tag-gold"><CrownIcon /> König</span>}
           {schwimmer && <span className="tm-tag"><WaveIcon /> Schwimmer</span>}
           {setThisRound > 0 && <span className="tm-tag tm-tag-gold">×{setThisRound} gesetzt</span>}
         </span>
-        <span className="tm-name">{name(p)}</span>
+        <span className="tm-name"><span>{name(p)}</span></span>
         <span className="tm-crowns"><CrownIcon /> {crowns}{hint && <span className="tm-hint"> · Tipp: {hint}</span>}</span>
       </span>
     </button>

@@ -28,6 +28,8 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   **Kommentator** (Knopf „Kommentar“, standardmäßig aus): sagt Schwimmer, Kronen, Finale samt Aufschläger und Sieg
   an, mit ElevenLabs (falls eingerichtet) oder der eingebauten Browser-Stimme. Die Sprüche stehen in
   `src/domain/commentary.ts`.
+  Mit eingeschaltetem Kommentator ertönt um 9:58, 11:58, 13:58 und 15:43 ein Signalhorn als Zeichen für die letzte
+  Runde (Uhrzeiten in `src/lib/horn.ts`). Es beendet nichts. Oben mittig steht die aktuelle Uhrzeit.
 - **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
   Runden und Pausen starten geht nur online. Die App startet auch ohne Netz mit dem zuletzt geladenen Stand.
 - **Dashboard:** Rekorde pro Tag, Woche, Semester und insgesamt, Tabelle mit Quoten, Kronen-Kurve, Duelle (Finalbilanz

@@ -321,7 +321,9 @@ select { font: inherit; color: var(--ink); background: var(--surface-2); border:
   user-select: none; -webkit-user-select: none; touch-action: manipulation;
 }
 .tm button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent }
-.tm-top { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08) }
+.tm-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08) }
+.tm-top-right { display: flex; align-items: center; gap: 10px; justify-content: flex-end; min-width: 0 }
+.tm-clock { font-family: var(--f-display); font-weight: 800; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: .02em }
 .tm-round { font-family: var(--f-display); font-weight: 800; font-size: 34px; text-transform: uppercase; display: flex; gap: 14px; align-items: center; white-space: nowrap }
 .tm-pot { display: inline-flex; gap: 6px; align-items: center; color: #f0c24f }
 .tm-actions { flex: 1; display: flex; gap: 10px; justify-content: flex-end; min-width: 0 }
@@ -359,6 +361,36 @@ select { font: inherit; color: var(--ink); background: var(--surface-2); border:
 .tm-tag-gold { color: #f0c24f; border-color: rgba(240,194,79,.5) }
 .tm-tag-hot { background: var(--ball); border-color: var(--ball) }
 .tm-name { font-family: var(--f-display); font-weight: 800; font-size: clamp(30px, 5.5vh, 72px); line-height: .9; text-transform: uppercase; text-shadow: 0 2px 14px rgba(0,0,0,.6); overflow-wrap: anywhere }
+/* Name auf einer halbtransparenten Raute (Parallelogramm) mit Akzentkante in der Spielerfarbe */
+.tm-player .tm-name { justify-self: start; max-width: 100%; position: relative; padding: .16em .75em .1em .95em; margin-left: -.2em }
+.tm-player .tm-name::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  clip-path: polygon(.35em 0, 100% 0, calc(100% - .35em) 100%, 0 100%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 85%, #fff) 0 .5em, rgba(6,10,16,.5) .5em);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.tm-player .tm-name > span { position: relative }
+
+/* König: Goldrahmen, Glanz und eine große Krone über dem Kopf */
+.tm-player.is-king { box-shadow: inset 0 0 0 4px #f0c24f, inset 0 0 50px rgba(240,194,79,.35), 0 0 26px rgba(240,194,79,.35) }
+.tm-player.is-king .tm-tag-gold:first-child { background: #f0c24f; color: #1a1205; border-color: #f0c24f; font-size: 16px; padding: 6px 12px }
+.tm-king-crown { position: absolute; left: 50%; top: -2%; width: 46%; transform: translate(-50%, -30%) rotate(-8deg); color: #f0c24f; filter: drop-shadow(0 4px 10px rgba(0,0,0,.6)) drop-shadow(0 0 16px rgba(240,194,79,.7)) }
+.tm-king-crown .ic { width: 100%; height: auto; display: block }
+
+/* Schwimmer: Wasser steht dem Spieler bis zur Brust, darüber das Wort als Wasserzeichen */
+.tm-player.is-schwimmer { box-shadow: inset 0 0 0 4px #4fb6f0, 0 0 26px rgba(79,182,240,.35) }
+.tm-water { position: absolute; left: 0; right: 0; bottom: 0; height: 42%; pointer-events: none; overflow: hidden }
+.tm-water-mark { position: absolute; left: 50%; top: 16%; transform: translateX(-50%) rotate(-6deg); font-family: var(--f-display); font-weight: 800; font-size: clamp(34px, 7vh, 96px); letter-spacing: .04em; text-transform: uppercase; color: rgba(210,240,255,.4); white-space: nowrap; z-index: 2 }
+.tm-wave { position: absolute; left: 0; right: 0; bottom: 0; background-repeat: repeat-x; background-size: 220px 100%; z-index: 1 }
+.tm-wave-back { top: 6%; opacity: .55; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3Cpath d='M0 12 Q25 0 50 12 T100 12 T150 12 T200 12 V100 H0Z' fill='%232f8fd0'/%3E%3C/svg%3E") }
+.tm-wave-front { top: 14%; opacity: .7; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3Cpath d='M0 12 Q25 24 50 12 T100 12 T150 12 T200 12 V100 H0Z' fill='%231d6fae'/%3E%3C/svg%3E") }
+@media (prefers-reduced-motion: no-preference) {
+  .tm-wave-back { animation: tm-wave 7s linear infinite }
+  .tm-wave-front { animation: tm-wave 4.5s linear infinite reverse }
+  .tm-king-crown { animation: tm-crown-bob 2.4s ease-in-out infinite }
+  @keyframes tm-wave { from { background-position-x: 0 } to { background-position-x: 220px } }
+  @keyframes tm-crown-bob { 0%, 100% { transform: translate(-50%, -30%) rotate(-8deg) } 50% { transform: translate(-50%, -42%) rotate(4deg) } }
+}
 .tm-crowns { font-family: var(--f-mono); font-size: clamp(16px, 2.4vh, 26px); font-weight: 600; color: #f0c24f; display: flex; gap: 6px; align-items: center }
 .tm-hint { font-family: var(--f-body); font-weight: 400; color: rgba(255,255,255,.65); font-size: .7em }
 
