@@ -209,8 +209,10 @@ So verhält sich die App:
 - Antwortet ElevenLabs nicht innerhalb von 2 Sekunden, spricht für diesen Satz die Browser-Stimme; die Anfrage läuft
   aber weiter und der Satz kommt beim nächsten Mal aus dem Speicher. Mit Kommentar hält die App die Funktion wach.
 - Neben „Browser-Stimme“ steht am Knopf der Grund, z. B. „zu langsam“, „Guthaben leer“ oder „nicht eingerichtet“.
-- Stimme wechseln: nur `ELEVENLABS_VOICE_ID` ändern und neu deployen. Beim nächsten Einschalten des Kommentars
-  verwirft die App die gespeicherten Audios der alten Stimme; jeder Satz wird einmal neu erzeugt.
+- Stimme wechseln: nur `ELEVENLABS_VOICE_ID` ändern und neu deployen. Ab dem nächsten Einschalten des Kommentars
+  nutzt die App nur Audios der neuen Stimme; jeder Satz wird einmal neu erzeugt. Die Audios der alten Stimme bleiben
+  auf dem Gerät und sind nach einem Zurückwechseln sofort wieder da. Anhören und herunterladen lässt sich jede
+  erzeugte Ansage im Verlauf (History) bei ElevenLabs.
 
 ### Wer darf was?
 
