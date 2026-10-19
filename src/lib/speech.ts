@@ -145,7 +145,10 @@ async function request(text: string, token: string): Promise<Fetched> {
     const blob = await res.blob();
     write(DAY_KEY, `${today()}:${charsToday() + text.length}`);
     const voice = res.headers.get('X-Voice');
-    if (voice) write(VOICE_KEY, voice);
+    if (voice && voice !== read(VOICE_KEY)) {
+      write(VOICE_KEY, voice);
+      if ('caches' in window) await caches.delete(CACHE); // Audios der alten Stimme verwerfen
+    }
     if ('caches' in window) {
       await caches.open(CACHE).then((c) => c.put(cacheKey(text), new Response(blob, { headers: { 'Content-Type': 'audio/mpeg' } })));
     }
@@ -182,7 +185,16 @@ async function fromEleven(text: string): Promise<Fetched> {
 /** Weckt die Server-Funktion vorab auf, damit die erste Ansage nicht auf den Kaltstart wartet */
 export function warmVoice() {
   if (pausedReason() || !navigator.onLine) return;
-  void fetch('/api/tts', { method: 'GET' }).catch(() => {});
+  void fetch('/api/tts', { method: 'GET' })
+    .then((res) => {
+      // Neue Stimme eingestellt: gespeicherte Audios der alten Stimme ab sofort nicht mehr verwenden
+      const voice = res.headers.get('X-Voice');
+      if (voice && voice !== read(VOICE_KEY)) {
+        write(VOICE_KEY, voice);
+        if ('caches' in window) void caches.delete(CACHE);
+      }
+    })
+    .catch(() => {});
 }
 
 let turn = 0;

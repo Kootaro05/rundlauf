@@ -11,9 +11,13 @@ const DEFAULT_MODEL = 'eleven_v4_turbo';
 
 const fail = (status: number, error: string) => Response.json({ error }, { status });
 
-/** Nur zum Aufwärmen: die App ruft das vorab auf, damit die erste Ansage nicht auf den Kaltstart wartet */
+/**
+ * Zum Aufwärmen: die App ruft das vorab auf, damit die erste Ansage nicht auf den Kaltstart wartet.
+ * Meldet dabei die eingestellte Stimme, damit die App nach einem Stimmwechsel keine alten Audios mehr abspielt.
+ */
 export async function GET() {
-  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+  const voice = env.ELEVENLABS_VOICE_ID;
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store', ...(voice ? { 'X-Voice': voice } : {}) } });
 }
 
 export async function POST(req: Request) {
