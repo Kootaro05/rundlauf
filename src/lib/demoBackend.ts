@@ -98,6 +98,17 @@ export function createDemoBackend(): Backend {
       data.pauses = data.pauses.filter((p) => p.id !== pauseId);
       changed();
     },
+    async removeFromRound({ roundId, playerId, eventIds, leavePause }) {
+      for (const pa of data.pauses)
+        for (const r of pa.rounds)
+          if (r.id === roundId) {
+            r.events = r.events.filter((e) => !eventIds.includes(e.id));
+            r.participants = r.participants.filter((p) => p !== playerId);
+          }
+      const pa = data.pauses.find((p) => p.id === leavePause);
+      if (pa) pa.participants = pa.participants.filter((p) => p !== playerId);
+      changed();
+    },
 
     async addPlayer(name) {
       if (data.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) throw new AppError('Diesen Namen gibt es schon.');

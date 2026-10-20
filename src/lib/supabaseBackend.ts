@@ -203,6 +203,11 @@ export function createSupabaseBackend(url: string, key: string): Backend {
     async deletePause(pauseId) {
       check(await sb.from('pauses').delete().eq('id', pauseId));
     },
+    async removeFromRound({ roundId, playerId, eventIds, leavePause }) {
+      if (eventIds.length) check(await sb.from('events').delete().in('id', eventIds));
+      check(await sb.from('round_players').delete().eq('round_id', roundId).eq('player_id', playerId));
+      if (leavePause) check(await sb.from('pause_players').delete().eq('pause_id', leavePause).eq('player_id', playerId));
+    },
 
     async addPlayer(name) {
       return check(await sb.rpc('add_player', { p_name: name, p_email: null })).data as string;

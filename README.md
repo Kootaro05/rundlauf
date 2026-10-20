@@ -52,7 +52,8 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   - *Spieler:* anlegen mit Einladungslink, Einladungslink für spontan angelegte Spieler, Profil bearbeiten, ausblenden,
     Login trennen, doppelt angelegte Spieler zusammenführen (alle Runden gehen an den anderen; nicht möglich, wenn
     beide in derselben Runde waren).
-  - *Pausen:* vergangene Pausen korrigieren: Einträge und Runden löschen, Finalsieger tauschen, Aufschläger ändern,
+  - *Pausen:* vergangene Pausen korrigieren: Einträge und Runden löschen, Finalsieger tauschen, Aufschläger ändern, versehentlich
+    mitgezählte Spieler aus einer Runde entfernen (nur wer dort bloß „raus“ war),
     ganze Pausen löschen. Vorher wird die Pause nachgespielt; würde eine Änderung spätere Einträge ungültig machen
     (z. B. eine Krone, die es ohne den gelöschten Sieg nicht gäbe), wird sie abgelehnt.
   - *Einladungen:* alle Links mit Status, offene zurückziehen.

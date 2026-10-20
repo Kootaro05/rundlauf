@@ -60,6 +60,11 @@ export interface Backend {
   updateFinal(eventId: string, patch: { p: string; loser: string; server: string | null }): Promise<void>;
   deleteRound(roundId: string): Promise<void>;
   deletePause(pauseId: string): Promise<void>;
+  /**
+   * Nimmt einen Spieler aus einer Runde, der versehentlich mit drin war: löscht seine Einträge dort
+   * (nur ein "raus") und mit `leavePause` auch seine Teilnahme an der Pause, wenn er sonst nicht mitgespielt hat.
+   */
+  removeFromRound(q: { roundId: string; playerId: string; eventIds: string[]; leavePause: string | null }): Promise<void>;
 
   /** Schnelles Anlegen am Tisch: nur ein Spitzname. Gibt die ID des neuen Spielers zurück. */
   addPlayer(name: string): Promise<string>;

@@ -154,3 +154,17 @@ export function validatePause(pa: Pause): string | null {
   }
   return null;
 }
+
+/**
+ * Pause ohne einen versehentlich mitgezählten Spieler in Runde `r`. Geht nur, wenn er dort höchstens
+ * ein "raus" hat (kein Schwimmer, keine Krone, nicht im Finale). Mit `leavePause`: Er hat in keiner anderen
+ * Runde dieser Pause mitgespielt und fällt auch aus der Pause. Ob die Pause danach gültig ist, prüft validatePause.
+ */
+export function withoutPlayer(pa: Pause, r: Round, p: string): { pause: Pause; eventIds: string[]; leavePause: boolean } | null {
+  const mine = r.events.filter((e) => e.p === p || e.loser === p || e.server === p);
+  if (!r.participants.includes(p) || mine.some((e) => e.type !== 'out')) return null;
+  const leavePause = !pa.rounds.some((x) => x.id !== r.id && x.participants.includes(p));
+  const rounds = pa.rounds.map((x) => (x.id === r.id ? { ...x, participants: x.participants.filter((q) => q !== p), events: x.events.filter((e) => !mine.includes(e)) } : x));
+  const participants = leavePause ? pa.participants.filter((q) => q !== p) : pa.participants;
+  return { pause: { ...pa, rounds, participants }, eventIds: mine.map((e) => e.id), leavePause };
+}

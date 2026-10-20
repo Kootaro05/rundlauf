@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balances, crownCheck, currentRound, faultOutcome, kingOf, roundInfo, serveRule, validatePause } from './game';
+import { balances, crownCheck, currentRound, faultOutcome, kingOf, roundInfo, serveRule, validatePause, withoutPlayer } from './game';
 import { computeStats, recordFor } from './stats';
 import { semester } from './periods';
 import type { EventType, Pause, Round } from './types';
@@ -151,5 +151,44 @@ describe('Statistik', () => {
     expect(semester(new Date(2026, 9, 14))).toBe('WiSe 26/27');
     expect(semester(new Date(2027, 2, 31))).toBe('WiSe 26/27');
     expect(semester(new Date(2027, 3, 1))).toBe('SoSe 2027');
+  });
+});
+
+describe('Spieler aus Runde entfernen', () => {
+  it('nimmt einen nur rausgeflogenen Spieler samt "raus" heraus, die Pause bleibt gültig', () => {
+    const P = ['a', 'b', 'c', 's'];
+    const r1 = round(P, ['schwimmer', 'a'], ['out', 'b'], ['out', 's'], ['final', 'c', { loser: 'a', pot: 1 }]);
+    const r2 = round(['a', 'b', 'c'], ['schwimmer', 'b'], ['out', 'a'], ['final', 'b', { loser: 'c', pot: 1 }]);
+    const pa = pause(P, r1, r2);
+    const res = withoutPlayer(pa, r1, 's')!;
+    expect(res.leavePause).toBe(true);
+    expect(res.eventIds).toEqual([r1.events[2].id]);
+    expect(res.pause.rounds[0].participants).toEqual(['a', 'b', 'c']);
+    expect(res.pause.participants).toEqual(['a', 'b', 'c']);
+    expect(validatePause(res.pause)).toBeNull();
+  });
+
+  it('bleibt in der Pause, wenn er in einer anderen Runde mitgespielt hat', () => {
+    const P = ['a', 'b', 'c', 's'];
+    const r1 = round(P, ['schwimmer', 'a'], ['out', 's'], ['out', 'b'], ['final', 'c', { loser: 'a', pot: 1 }]);
+    const r2 = round(P, ['schwimmer', 's'], ['out', 'a'], ['out', 'b'], ['final', 's', { loser: 'c', pot: 1 }]);
+    expect(withoutPlayer(pause(P, r1, r2), r1, 's')!.leavePause).toBe(false);
+  });
+
+  it('geht nicht für Schwimmer, Kronensetzer oder Finalisten', () => {
+    const P = ['a', 'b', 'c', 'd'];
+    const r = round(P, ['schwimmer', 'a'], ['crown', 'b'], ['out', 'd'], ['out', 'b'], ['final', 'c', { loser: 'a', pot: 2 }]);
+    const pa = pause(P, r);
+    expect(withoutPlayer(pa, r, 'a')).toBeNull();
+    expect(withoutPlayer(pa, r, 'b')).toBeNull();
+    expect(withoutPlayer(pa, r, 'c')).toBeNull();
+    expect(withoutPlayer(pa, r, 'd')).not.toBeNull();
+  });
+
+  it('die Prüfung lehnt ab, wenn die Runde ohne ihn nicht mehr aufgeht', () => {
+    // Ohne s bleiben nur zwei: dann hätte es keinen Schwimmer geben dürfen
+    const r = round(['a', 'b', 's'], ['schwimmer', 'a'], ['out', 's'], ['final', 'a', { loser: 'b', pot: 1 }]);
+    const res = withoutPlayer(pause(['a', 'b', 's'], r), r, 's')!;
+    expect(validatePause(res.pause)).not.toBeNull();
   });
 });

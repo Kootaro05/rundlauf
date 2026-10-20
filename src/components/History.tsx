@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { balances, isFinished, kingOf, roundInfo, validatePause } from '../domain/game';
+import { balances, isFinished, kingOf, roundInfo, validatePause, withoutPlayer } from '../domain/game';
 import { fmtDate, fmtTime, fmtWeekday } from '../domain/periods';
 import type { GameEvent, Pause, Round } from '../domain/types';
 import { LineChart } from './LineChart';
@@ -48,7 +48,7 @@ export function History({ admin = false }: { admin?: boolean }) {
 }
 
 function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
-  const { backend, run, toast, busy } = useApp();
+  const { backend, run, toast, busy, name } = useApp();
   const [edit, setEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const n = pa.rounds.length;
@@ -76,6 +76,16 @@ function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
       ),
     setServer: (e: GameEvent, server: string) =>
       void run(() => backend.updateFinal(e.id, { p: e.p, loser: e.loser!, server }), 'Aufschläger geändert', thisPause),
+    /** Spieler war versehentlich mit in der Runde: sein "raus" und seine Teilnahme verschwinden */
+    removeFromRound: (r: Round, p: string) => {
+      const res = withoutPlayer(pa, r, p);
+      if (!res) return toast(`${name(p)} war in dieser Runde nicht nur "raus" (z. B. Schwimmer oder Krone) und lässt sich nicht einfach entfernen.`);
+      change(
+        res.pause,
+        () => backend.removeFromRound({ roundId: r.id, playerId: p, eventIds: res.eventIds, leavePause: res.leavePause ? pa.id : null }),
+        `${name(p)} aus Runde ${r.number} entfernt${res.leavePause ? ' (und aus der Pause)' : ''}`,
+      );
+    },
     deleteRound: (r: Round) =>
       change(withRounds(pa.rounds.filter((x) => x !== r)), () => backend.deleteRound(r.id), 'Runde gelöscht'),
   };
@@ -104,7 +114,7 @@ function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
           ))}
         </div>
       )}
-      {edit && <p className="sub">Jede Änderung wird gegen die Regeln geprüft. Ein gelöschter Sieg kann zum Beispiel eine später gesetzte Krone ungültig machen, dann geht die Änderung nicht.</p>}
+      {edit && <p className="sub">„Aus Runde entfernen“ ist für Spieler, die versehentlich mit in der Runde waren und nur ausgetragen wurden. Jede Änderung wird gegen die Regeln geprüft. Ein gelöschter Sieg kann zum Beispiel eine später gesetzte Krone ungültig machen, dann geht die Änderung nicht.</p>}
       <div className="timeline">
         {n === 0 && <p className="sub">Noch keine Runde gespielt.</p>}
         {pa.rounds.map((r) => {
@@ -125,7 +135,17 @@ function PauseDetail({ pa, admin }: { pa: Pause; admin: boolean }) {
                     <span><EventText e={e} /></span>
                     {edit && (e.type === 'final'
                       ? <FinalEdit e={e} busy={busy} onSwap={() => ops.swapWinner(r, e)} onServer={(s) => ops.setServer(e, s)} />
-                      : <button className="btn ghost small" disabled={busy} aria-label="Eintrag löschen" onClick={() => ops.deleteEvent(r, e)}>✕</button>)}
+                      : (
+                        <span className="row">
+                          {e.type === 'out' && withoutPlayer(pa, r, e.p) && (
+                            <button className="btn ghost small" disabled={busy} onClick={() => ops.removeFromRound(r, e.p)}
+                              title={`${name(e.p)} hat in dieser Runde gar nicht mitgespielt: aus der Runde nehmen statt "raus"`}>
+                              Aus Runde entfernen
+                            </button>
+                          )}
+                          <button className="btn ghost small" disabled={busy} aria-label="Eintrag löschen" onClick={() => ops.deleteEvent(r, e)}>✕</button>
+                        </span>
+                      ))}
                   </span>
                 </div>
               ))}
