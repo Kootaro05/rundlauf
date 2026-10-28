@@ -3,8 +3,11 @@ import { periodKey } from './periods';
 import type { Pause, Round } from './types';
 
 export const ELO_START = 1000;
-/** Maximaler Gewinn pro Runde (gegen alle Gegner zusammen) */
-const K = 32;
+/**
+ * Gewicht jedes einzelnen Duells. Jeder Gegner zählt gleich viel: ein Sieg zu siebt (6 Gegner) bringt
+ * doppelt so viel wie zu viert (3 Gegner), als Erster rauszufliegen kostet entsprechend mehr.
+ */
+export const K_PER_OPPONENT = 8;
 
 /**
  * Platzierung einer abgeschlossenen Runde, beste zuerst:
@@ -30,8 +33,8 @@ export interface EloResult {
 
 /**
  * Mehrspieler-ELO: Jede Runde wird in paarweise Duelle zerlegt. Wer vor einem anderen landet,
- * hat gegen ihn gewonnen. Der Gewinn wird durch die Zahl der Gegner geteilt, damit eine Runde
- * mit vielen Spielern nicht mehr zählt als ein Duell.
+ * hat gegen ihn gewonnen. Jedes Duell zählt mit demselben Gewicht (K_PER_OPPONENT), unabhängig davon,
+ * wie viele mitspielen.
  */
 export function computeElo(pauses: Pause[]): EloResult {
   const rating: Record<string, number> = {};
@@ -56,7 +59,7 @@ export function computeElo(pauses: Pause[]): EloResult {
     const t = roundInfo(r).final!.t;
     const before = order.map((p) => get(p, r.startedAt));
     const delta = order.map(() => 0);
-    const k = K / (order.length - 1);
+    const k = K_PER_OPPONENT;
     for (let a = 0; a < order.length; a++)
       for (let b = a + 1; b < order.length; b++) {
         // a ist vor b gelandet

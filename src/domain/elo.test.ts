@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ELO_START, computeElo, placement, podium, ratingAt, semesterElo } from './elo';
+import { ELO_START, K_PER_OPPONENT, computeElo, placement, podium, ratingAt, semesterElo } from './elo';
 import { computeComebacks, computeDuels, longestFinalStreak } from './stats';
 import type { EventType, Pause, Round } from './types';
 
@@ -28,6 +28,19 @@ describe('ELO', () => {
     expect(rating.c).toBeLessThan(ELO_START);
     expect(rating.b).toBeCloseTo(ELO_START, 5);
     expect(rating.a + rating.b + rating.c).toBeCloseTo(3 * ELO_START, 5);
+  });
+
+  it('jeder Gegner zählt gleich: zu siebt bringt ein Sieg doppelt so viel wie zu viert', () => {
+    const win = (ps: string[]) => {
+      const outs = ps.slice(2).map((p) => ['out', p] as [EventType, string]);
+      return computeElo([pause(0, round(ps, ['schwimmer', ps[2]], ...outs, ['final', ps[0], { loser: ps[1], pot: 1 }]))]).rating;
+    };
+    const four = win(['a', 'b', 'c', 'd']);
+    const seven = win(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+    expect(four.a - ELO_START).toBeCloseTo(3 * K_PER_OPPONENT / 2, 5);
+    expect(seven.a - ELO_START).toBeCloseTo(2 * (four.a - ELO_START), 5);
+    // Wer als Erster rausfliegt, verliert zu siebt doppelt so viel
+    expect(ELO_START - seven.c).toBeCloseTo(2 * (ELO_START - four.c), 5);
   });
 
   it('ein Sieg gegen einen Stärkeren bringt mehr als gegen einen Schwächeren', () => {

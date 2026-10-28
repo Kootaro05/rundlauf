@@ -47,7 +47,9 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   Lieblings- und Angstgegner und längster Siegesserie.
 - **ELO:** Jede Runde zählt nach Platzierung: Finalsieger, Finalverlierer, dann rückwärts in der Raus-Reihenfolge.
   Jeder wird mit jedem anderen der Runde verglichen, als hätten sie ein Duell gespielt. Wer vor einem Stärkeren landet,
-  gewinnt mehr. Pro Runde sind höchstens ±32 drin ([`elo.ts`](src/domain/elo.ts)).
+  gewinnt mehr. Jeder Gegner zählt gleich viel (8 Punkte pro Duell), ein Sieg zu siebt bringt also doppelt so viel
+  wie zu viert; bei Gleichstand der Werte etwa +4 pro geschlagenem und −4 pro verlorenem Duell
+  ([`elo.ts`](src/domain/elo.ts)).
   Die **ELO** läuft seit dem ersten Spiel. Die **Semester-ELO** startet zu jedem Semesterbeginn für alle wieder bei 1000
   und bestimmt die Platzierung im Profil; beide stehen in der Tabelle und im Profil.
 - **Semester:** wechseln automatisch nach Datum (SoSe 1. April – 30. September, WiSe 1. Oktober – 31. März).
