@@ -88,7 +88,7 @@ export function PlayerProfile({ p }: { p: string }) {
           </div>
           <div className="card stack">
             <p className="sub">
-              {plural(s.pausen, 'Pause', 'Pausen')} · Schwimmer in {pct(s.schwimmer, s.runden)} der Runden ·
+              {plural(s.pausen, 'Pause', 'Pausen')} · Schwimmer in {pct(s.schwimmer, s.runden)} der Runden{s.bleiente > 0 && `, davon ${s.bleiente}× als Bleiente`} ·
               als Erster raus in {pct(s.ersterRaus, s.runden)} · {plural(s.gesetzt, 'Krone', 'Kronen')} gesetzt ·
               {' '}{s.ass} {s.ass === 1 ? 'Ass' : 'Asse'} bei {plural(s.aufschlaege, 'Aufschlag', 'Aufschlägen')} · {plural(s.koenig, 'Pause', 'Pausen')} als König
             </p>

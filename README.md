@@ -27,13 +27,17 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   Pause starten/beenden und Spieler ändern bleiben in der normalen Ansicht.
   **Kommentator** (Knopf „Kommentar“, standardmäßig aus): sagt Schwimmer, Kronen, Finale samt Aufschläger und Sieg
   an, mit ElevenLabs (falls eingerichtet) oder der eingebauten Browser-Stimme. Die Sprüche stehen in
-  `src/domain/commentary.ts`.
+  `src/domain/commentary.ts`. Eigene Sprüche gibt es für den **Bademeister** (meiste Schwimmer im laufenden
+  Semester; neuer Bademeister wird man erst durch Überholen) und die **Bleiente** (Schwimmer gehabt und trotzdem
+  als Erster raus). Bei jedem anderen „raus“ (außer es geht ins Finale) spielt `public/sounds/enemy-slain.mp3`;
+  die Datei ist nicht im Repo und muss selbst abgelegt werden. Fehlt sie, sagt der Kommentator
+  „An enemy has been slain.“
   Mit eingeschaltetem Kommentator ertönt um 9:58, 11:58, 13:58 und 15:43 ein Signalhorn als Zeichen für die letzte
   Runde (Uhrzeiten in `src/lib/horn.ts`). Es beendet nichts. Oben mittig steht die aktuelle Uhrzeit.
 - **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
   Runden und Pausen starten geht nur online. Die App startet auch ohne Netz mit dem zuletzt geladenen Stand.
 - **Dashboard:** Rekorde pro Tag, Woche, Semester und insgesamt, Tabelle mit Quoten, Kronen-Kurve, Duelle (Finalbilanz
-  jeder gegen jeden) und Auszeichnungen. Ein Klick auf einen Namen öffnet das Spielerprofil mit ELO-Verlauf,
+  jeder gegen jeden) und Auszeichnungen (u. a. Bademeister, Bleiente, Kronen-Bonze, Finalgott). Ein Klick auf einen Namen öffnet das Spielerprofil mit ELO-Verlauf,
   Lieblings- und Angstgegner und längster Siegesserie.
 - **ELO:** Jede Runde zählt nach Platzierung: Finalsieger, Finalverlierer, dann rückwärts in der Raus-Reihenfolge.
   Jeder wird mit jedem anderen der Runde verglichen, als hätten sie ein Duell gespielt. Wer vor einem Stärkeren landet,

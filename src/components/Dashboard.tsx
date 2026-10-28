@@ -70,6 +70,7 @@ export function Dashboard() {
     { k: 'gewonnen', label: 'Gewonnen', v: (x) => x.gewonnen },
     { k: 'gesetzt', label: 'Gesetzt', v: (x) => x.gesetzt },
     { k: 'schwimmer', label: 'Schwimmer', v: (x) => x.schwimmer, fmt: (x) => <>{x.schwimmer} <span className="dim">{pct(x.schwimmer, x.runden)}</span></> },
+    { k: 'bleiente', label: 'Bleiente', v: (x) => x.bleiente, fmt: (x) => <>{x.bleiente} <span className="dim">{pct(x.bleiente, x.schwimmer)}</span></> },
     { k: 'erster', label: 'Erster raus', v: (x) => (x.runden ? x.ersterRaus / x.runden : 0), fmt: (x) => <>{x.ersterRaus} <span className="dim">{pct(x.ersterRaus, x.runden)}</span></> },
     { k: 'maxPot', label: 'Max. Pot', v: (x) => x.maxPot },
     { k: 'beste', label: 'Beste Pause', v: (x) => x.beste },
@@ -124,7 +125,7 @@ export function Dashboard() {
           </div>
         </div>
         <p className="sub">
-          {plural(list.length, 'Pause', 'Pausen')} · Quoten zählen nur Runden, bei denen der Spieler dabei war. Spaltenkopf antippen zum Sortieren{isMember ? ', Namen antippen fürs Profil' : ''}.
+          {plural(list.length, 'Pause', 'Pausen')} · Quoten zählen nur Runden, bei denen der Spieler dabei war. Bleiente = Schwimmer gehabt und trotzdem als Erster raus (Quote je Schwimmer). Spaltenkopf antippen zum Sortieren{isMember ? ', Namen antippen fürs Profil' : ''}.
           ELO bewertet jede Runde nach Platzierung und läuft seit dem ersten Spiel. Die Semester-ELO startet jedes Semester
           für alle bei 1000{period !== 'all' ? ', daneben ihre Veränderung im Zeitraum' : ''}.
         </p>
@@ -239,7 +240,7 @@ function Awards({ rows, label, comeback }: { rows: PlayerStats[]; label: string;
   const aw: [string, string, string][] = [];
 
   const sw = pick((x) => x.schwimmer + x.schwimmer / (x.runden || 1));
-  if (sw?.schwimmer) aw.push(['Rettungsschwimmer', sw.p, `${sw.schwimmer}× Schwimmer · ${pct(sw.schwimmer, sw.runden)} der Runden`]);
+  if (sw?.schwimmer) aw.push(['Bademeister', sw.p, `${sw.schwimmer}× Schwimmer · ${pct(sw.schwimmer, sw.runden)} der Runden`]);
   const gs = pick((x) => x.gesetzt);
   if (gs?.gesetzt) aw.push(['Kronen-Bonze', gs.p, `${plural(gs.gesetzt, 'Krone', 'Kronen')} gesetzt`]);
   const as = pick((x) => x.ass + x.ass / (x.aufschlaege || 1));
@@ -249,6 +250,8 @@ function Awards({ rows, label, comeback }: { rows: PlayerStats[]; label: string;
   if (pp?.maxPot) aw.push(['Pot-Pirat', pp.p, `größter gewonnener Pot: ${pp.maxPot}`]);
   const fr = pick((x) => x.ersterRaus / x.runden, (x) => x.runden >= 3);
   if (fr?.ersterRaus) aw.push(['Frühstarter', fr.p, `als Erster raus in ${pct(fr.ersterRaus, fr.runden)} der Runden`]);
+  const bl = pick((x) => x.bleiente + x.bleiente / (x.schwimmer || 1));
+  if (bl?.bleiente) aw.push(['Bleiente', bl.p, `${bl.bleiente}× Schwimmer gehabt und trotzdem als Erster raus`]);
   const fg = pick((x) => x.siege / x.finals, (x) => x.finals >= 3);
   if (fg?.siege) aw.push(['Finalgott', fg.p, `${fg.siege} von ${fg.finals} Finals gewonnen`]);
   const kg = pick((x) => x.koenig);

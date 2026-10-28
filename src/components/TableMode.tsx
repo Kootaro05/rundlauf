@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { balances, crownCheck, currentRound, kingOf, nextSeq, openPause, roundInfo, serveRule } from '../domain/game';
-import { lineForEvent, lineForFinal, render, type Line } from '../domain/commentary';
+import { LINES, lineForEvent, lineForFinal, render, type Line } from '../domain/commentary';
+import { bademeister } from '../domain/stats';
 import type { NewEvent, Pause, Round } from '../domain/types';
 import { HORN_TIMES, hhmm, playHorn, unlockHorn } from '../lib/horn';
-import { configureVoice, setSpeechEnabled, speak, speechEnabled, speechSupported, unlockAudio, warmVoice, type VoiceResult } from '../lib/speech';
+import { configureVoice, playClip, setSpeechEnabled, speak, speechEnabled, speechSupported, unlockAudio, warmVoice, type VoiceResult } from '../lib/speech';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
+
+/** Sound für ein normales "raus" (selbst abzulegen, siehe README) */
+const SLAIN_SOUND = `${import.meta.env.BASE_URL}sounds/enemy-slain.mp3`;
 
 /** So lange bleibt die Wahl "Krone oder raus" offen, wenn niemand tippt */
 const CHOICE_TIMEOUT = 5000;
@@ -111,7 +115,9 @@ export function TableMode({ onExit }: { onExit: () => void }) {
  * da war, bleibt still; Rückgängig sagt nichts. Gibt eine Funktion für zusätzliche Ansagen zurück.
  */
 function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceResult) => void) {
-  const { name } = useApp();
+  const { name, data } = useApp();
+  const pausesRef = useRef(data.pauses);
+  pausesRef.current = data.pauses;
   const seen = useRef<Set<string> | null>(null);
   const lastText = useRef<string>();
   const enabledRef = useRef(enabled);
@@ -119,6 +125,11 @@ function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceRe
 
   const say = useCallback((line: Line | null) => {
     if (!line || !enabledRef.current) return;
+    // Normales "raus": Sound statt Ansage (Ersatztext, falls die Datei fehlt)
+    if (line.kind === 'slain') {
+      void playClip(SLAIN_SOUND, LINES.slain[0]).then((res) => res && onSource(res));
+      return;
+    }
     lastText.current = render(line, name, Math.random, lastText.current);
     void speak(lastText.current).then(onSource);
   }, [name, onSource]);
@@ -135,7 +146,7 @@ function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceRe
     const newRounds = pa.rounds.filter((r) => !known.has(r.id));
     ids.forEach((id) => known.add(id));
     const e = newEvents.at(-1);
-    if (e) return say(lineForEvent(pa, e));
+    if (e) return say(lineForEvent(pa, e, pausesRef.current));
     // Runde mit nur zwei Spielern ist sofort ein Finale
     const r = newRounds.at(-1);
     if (r && r.events.length === 0 && r.participants.length === 2) say(lineForFinal(pa, r));
@@ -171,6 +182,16 @@ function useHorn(now: Date, enabled: boolean) {
     }
     playHorn();
   }, [key, minute, enabled]);
+}
+
+/** Trillerpfeife für den Bademeister */
+function WhistleIcon() {
+  return (
+    <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M9 7h11a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3.2A6 6 0 1 1 9 7zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
+      <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" d="M4.5 6.5 3 5M7 5 6.5 3" />
+    </svg>
+  );
 }
 
 function SpeakerIcon({ on }: { on: boolean }) {
@@ -247,10 +268,11 @@ function describe(e: Pick<NewEvent, 'type' | 'p'>, name: (id: string) => string)
 // ---------------------------------------------------------------------------
 
 function RoundView({ pa, r }: { pa: Pause; r: Round }) {
-  const { addEvent, name } = useApp();
+  const { addEvent, name, data } = useApp();
   const i = roundInfo(r);
   const b = balances(pa);
   const king = kingOf(b);
+  const bm = bademeister(data.pauses);
   const [choice, setChoice] = useState<string | null>(null);
   const lockUntil = useRef(0);
 
@@ -295,7 +317,7 @@ function RoundView({ pa, r }: { pa: Pause; r: Round }) {
               </button>
             </div>
           ) : (
-            <PlayerTile key={p} p={p} crowns={b[p] ?? 0} king={p === king} schwimmer={i.schwimmer === p}
+            <PlayerTile key={p} p={p} crowns={b[p] ?? 0} king={p === king} bademeister={p === bm} schwimmer={i.schwimmer === p}
               setThisRound={i.crowns[p] ?? 0} hint={!i.schwimmer ? 'Schwimmer' : crownCheck(pa, r, p).ok ? 'Krone oder raus' : 'raus'}
               onTap={() => tap(p)} />
           );
@@ -311,8 +333,8 @@ function RoundView({ pa, r }: { pa: Pause; r: Round }) {
   );
 }
 
-function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap }: {
-  p: string; crowns: number; king: boolean; schwimmer: boolean; setThisRound: number; hint?: string; onTap: () => void;
+function PlayerTile({ p, crowns, king, bademeister: isBademeister, schwimmer, setThisRound, hint, onTap }: {
+  p: string; crowns: number; king: boolean; bademeister: boolean; schwimmer: boolean; setThisRound: number; hint?: string; onTap: () => void;
 }) {
   const { name, avatar, color, busy } = useApp();
   const img = avatar(p);
@@ -334,6 +356,7 @@ function PlayerTile({ p, crowns, king, schwimmer, setThisRound, hint, onTap }: {
       <span className="tm-info">
         <span className="tm-tags">
           {king && <span className="tm-tag tm-tag-gold"><CrownIcon /> König</span>}
+          {isBademeister && <span className="tm-tag tm-tag-water" title="Meiste Schwimmer im Semester"><WhistleIcon /> Bademeister</span>}
           {schwimmer && <span className="tm-tag"><WaveIcon /> Schwimmer</span>}
           {setThisRound > 0 && <span className="tm-tag tm-tag-gold">×{setThisRound} gesetzt</span>}
         </span>

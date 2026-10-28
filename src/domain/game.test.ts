@@ -124,7 +124,7 @@ describe('Statistik', () => {
       round(['a', 'b', 'c'], ['schwimmer', 'c'], ['out', 'c'], ['final', 'a', { loser: 'b', pot: 1 }]),
       won(['a', 'b'], 'b', 'a'));
     const s = computeStats([pa]);
-    expect(s.c).toMatchObject({ runden: 1, schwimmer: 1, ersterRaus: 1, netto: 0 });
+    expect(s.c).toMatchObject({ runden: 1, schwimmer: 1, ersterRaus: 1, bleiente: 1, netto: 0 });
     expect(s.a).toMatchObject({ runden: 2, siege: 1, finals: 2, netto: 1 });
   });
 

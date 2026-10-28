@@ -1,6 +1,6 @@
 import { balances, kingOf, roundInfo } from './game';
 import { periodKey, type Granularity } from './periods';
-import type { Pause } from './types';
+import type { GameEvent, Pause } from './types';
 
 export interface PlayerStats {
   p: string;
@@ -16,6 +16,8 @@ export interface PlayerStats {
   beste: number;
   schwimmer: number;
   ersterRaus: number;
+  /** Runden mit Schwimmer und trotzdem als Erster raus */
+  bleiente: number;
   maxPot: number;
   /** Pausen, die als König beendet wurden */
   koenig: number;
@@ -27,7 +29,7 @@ export interface PlayerStats {
 
 const empty = (p: string): PlayerStats => ({
   p, pausen: 0, runden: 0, finals: 0, siege: 0, gewonnen: 0, gesetzt: 0,
-  netto: 0, beste: 0, schwimmer: 0, ersterRaus: 0, maxPot: 0, koenig: 0, aufschlaege: 0, ass: 0,
+  netto: 0, beste: 0, schwimmer: 0, ersterRaus: 0, bleiente: 0, maxPot: 0, koenig: 0, aufschlaege: 0, ass: 0,
 });
 
 export function computeStats(list: Pause[]): Record<string, PlayerStats> {
@@ -50,6 +52,7 @@ export function computeStats(list: Pause[]): Record<string, PlayerStats> {
       for (const p of r.participants) S(p).runden++;
       if (i.schwimmer) S(i.schwimmer).schwimmer++;
       if (i.out[0]) S(i.out[0]).ersterRaus++;
+      if (i.schwimmer && i.out[0] === i.schwimmer) S(i.schwimmer).bleiente++;
       const pot = i.final.pot ?? 0;
       const w = S(i.final.p);
       w.finals++;
@@ -142,4 +145,26 @@ export function longestFinalStreak(pauses: Pause[], p: string): number {
       best = Math.max(best, cur);
     }
   return best;
+}
+
+/** Alle Schwimmer des laufenden Semesters in Spielreihenfolge, auch aus der gerade laufenden Runde */
+function semesterSchwimmer(pauses: Pause[], now: number): GameEvent[] {
+  return pausesIn(pauses, 'semester', now)
+    .sort((a, b) => a.startedAt - b.startedAt)
+    .flatMap((pa) => pa.rounds.flatMap((r) => r.events.filter((e) => e.type === 'schwimmer')));
+}
+
+/**
+ * Bademeister: wer im laufenden Semester die meisten Schwimmer hat. Bei Gleichstand bleibt der bisherige,
+ * neuer Bademeister wird man erst durch Überholen. Mit `before` der Stand direkt vor diesem Schwimmer-Eintrag.
+ */
+export function bademeister(pauses: Pause[], opts: { now?: number; before?: string } = {}): string | null {
+  const count: Record<string, number> = {};
+  let holder: string | null = null;
+  for (const e of semesterSchwimmer(pauses, opts.now ?? Date.now())) {
+    if (e.id === opts.before) break;
+    count[e.p] = (count[e.p] ?? 0) + 1;
+    if (!holder || count[e.p] > count[holder]) holder = e.p;
+  }
+  return holder;
 }

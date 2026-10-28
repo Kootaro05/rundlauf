@@ -54,9 +54,9 @@ export function setSpeechEnabled(on: boolean) {
 
 // --- Browser-Stimme ------------------------------------------------------------
 
-/** Beste deutsche Stimme: natürliche Online-Stimmen (Edge) vor den Standardstimmen */
-function germanVoice(): SpeechSynthesisVoice | null {
-  const de = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('de'));
+/** Beste Stimme für die Sprache: natürliche Online-Stimmen (Edge) vor den Standardstimmen */
+function bestVoice(lang: string): SpeechSynthesisVoice | null {
+  const de = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang.slice(0, 2)));
   const score = (v: SpeechSynthesisVoice) => (/natural/i.test(v.name) ? 4 : 0) + (/online|google/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
   return de.sort((a, b) => score(b) - score(a))[0] ?? null;
 }
@@ -64,12 +64,12 @@ function germanVoice(): SpeechSynthesisVoice | null {
 // Chrome lädt die Stimmen erst beim ersten Abfragen, deshalb schon beim Start einmal anstoßen
 if (speechSupported()) speechSynthesis.getVoices();
 
-function browserSpeak(text: string) {
+function browserSpeak(text: string, lang = 'de-DE') {
   if (!speechSupported()) return;
   const u = new SpeechSynthesisUtterance(text);
-  const v = germanVoice();
+  const v = bestVoice(lang);
   if (v) u.voice = v;
-  u.lang = v?.lang ?? 'de-DE';
+  u.lang = v?.lang ?? lang;
   u.rate = 1.05;
   speechSynthesis.speak(u);
 }
@@ -198,7 +198,7 @@ let turn = 0;
  * Sagt den Satz an. Ein noch laufender Satz wird abgebrochen, damit der Kommentar nicht hinterherhinkt.
  * Gibt zurück, welche Stimme gesprochen hat.
  */
-export async function speak(text: string): Promise<VoiceResult> {
+export async function speak(text: string, lang = 'de-DE'): Promise<VoiceResult> {
   const mine = ++turn;
   stop();
   let got: Fetched;
@@ -221,6 +221,25 @@ export async function speak(text: string): Promise<VoiceResult> {
       got = { reason: 'Abspielen blockiert' };
     }
   }
-  browserSpeak(text);
+  browserSpeak(text, lang);
   return { source: 'browser', reason: got.reason };
+}
+
+/**
+ * Spielt eine Tondatei (z. B. /sounds/enemy-slain.mp3) statt einer Ansage. Fehlt sie oder lässt sie sich nicht
+ * abspielen, wird `fallbackText` gesprochen. Gibt nur bei diesem Ersatz ein Ergebnis zurück.
+ */
+export async function playClip(url: string, fallbackText: string, lang = 'en-US'): Promise<VoiceResult | null> {
+  const mine = ++turn;
+  stop();
+  const a = audio();
+  if (playingUrl) URL.revokeObjectURL(playingUrl);
+  playingUrl = null;
+  a.src = url;
+  try {
+    await a.play();
+    return null;
+  } catch {
+    return mine === turn ? speak(fallbackText, lang) : null;
+  }
 }

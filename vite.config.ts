@@ -29,7 +29,7 @@ export default defineConfig({
       },
       workbox: {
         // Nur die App selbst wird zwischengespeichert. Daten kommen immer frisch von Supabase.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}'],
         // Demo-Figuren braucht nur der Demo-Modus, nicht die installierte App
         globIgnores: ['**/demo-avatars/**'],
         navigateFallbackDenylist: [/^\/auth/, /^\/api\//],

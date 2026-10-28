@@ -16,16 +16,18 @@ const last = (pa: Pause) => pa.rounds.at(-1)!.events.at(-1)!;
 const P = ['a', 'b', 'c', 'd'];
 
 describe('Kommentator', () => {
-  it('Schwimmer: "wieder", wenn er es schon in der Runde davor war', () => {
+  it('Schwimmer: "wieder", wenn er es schon in der Runde davor war (und nicht Bademeister ist)', () => {
     const first = pause(P, round(P, ['schwimmer', 'a']));
     expect(lineForEvent(first, last(first))?.kind).toBe('schwimmer');
-    const again = pause(P, round(P, ['schwimmer', 'a'], ['final', 'b', { loser: 'c', pot: 1 }]), round(P, ['schwimmer', 'a']));
+    const done = (p: string) => round(P, ['schwimmer', p], ['out', 'c'], ['out', 'd'], ['final', 'a', { loser: 'b', pot: 1 }]);
+    // a ist mit 2 Schwimmern Bademeister; b zieht nur gleich und bleibt beim normalen "wieder"
+    const again = pause(P, done('a'), done('a'), done('b'), round(P, ['schwimmer', 'b']));
     expect(lineForEvent(again, last(again))?.kind).toBe('schwimmerAgain');
   });
 
-  it('raus ist still, außer es bleiben zwei fürs Finale', () => {
+  it('raus: Slain-Sound, außer es bleiben zwei fürs Finale', () => {
     const three = pause(P, round(P, ['schwimmer', 'a'], ['out', 'b']));
-    expect(lineForEvent(three, last(three))).toBeNull();
+    expect(lineForEvent(three, last(three))?.kind).toBe('slain');
     const two = pause(P, round(P, ['schwimmer', 'a'], ['out', 'b'], ['out', 'c']));
     expect(lineForEvent(two, last(two))).toEqual({ kind: 'finalTie', vars: { a: 'a', b: 'd', server: '', pot: 1 } });
   });
@@ -61,5 +63,38 @@ describe('Kommentator', () => {
     const line = { kind: 'win' as const, vars: { name: 'a', pot: 2 } };
     const first = render(line, (id) => id, () => 0);
     expect(render(line, (id) => id, () => 0, first)).not.toBe(first);
+  });
+
+  it('Bleiente: Schwimmer und trotzdem als Erster raus; das Finale hat Vorrang', () => {
+    const pa = pause(P, round(P, ['schwimmer', 'a'], ['out', 'a']));
+    expect(lineForEvent(pa, last(pa))).toEqual({ kind: 'bleiente', vars: { name: 'a' } });
+    // nicht als Erster raus (hier bleiben danach zwei: Finale)
+    const later = pause(P, round(P, ['schwimmer', 'a'], ['out', 'b'], ['out', 'a']));
+    expect(lineForEvent(later, last(later))?.kind).toBe('finalTie');
+    const five = ['a', 'b', 'c', 'd', 'e'];
+    const notFirst = pause(five, round(five, ['schwimmer', 'a'], ['out', 'b'], ['out', 'a']));
+    expect(lineForEvent(notFirst, last(notFirst))?.kind).toBe('slain');
+    // bei drei Spielern führt das erste Raus ins Finale: nur der Finalspruch
+    const three = ['a', 'b', 'c'];
+    const fin = pause(three, round(three, ['schwimmer', 'a'], ['out', 'a']));
+    expect(lineForEvent(fin, last(fin))?.kind).toMatch(/^final/);
+  });
+
+  it('Bademeister: neuer erst durch Überholen, danach eigene Sprüche; sonst normale Schwimmer-Sprüche', () => {
+    const r1 = round(P, ['schwimmer', 'a'], ['out', 'b'], ['out', 'c'], ['final', 'a', { loser: 'd', pot: 1 }]);
+    const r2 = round(P, ['schwimmer', 'b'], ['out', 'c'], ['out', 'd'], ['final', 'a', { loser: 'b', pot: 1 }]);
+    const r3 = round(P, ['schwimmer', 'b']);
+    // Erster Schwimmer im Semester: normaler Spruch (niemand überholt)
+    expect(lineForEvent(pause(P, r1), r1.events[0])?.kind).toBe('schwimmer');
+    // b gleichauf mit Bademeister a: normaler Spruch
+    expect(lineForEvent(pause(P, r1, r2), r2.events[0])?.kind).toBe('schwimmer');
+    // b überholt a
+    const pa = pause(P, r1, r2, r3);
+    expect(lineForEvent(pa, r3.events[0])).toEqual({ kind: 'bademeisterNew', vars: { name: 'b' } });
+    // Bademeister a schwimmt erneut (in einer anderen Pause desselben Semesters)
+    const r4 = round(P, ['schwimmer', 'a']);
+    const pb = pause(P, r4);
+    const p1 = { ...pause(P, r1), id: 'p1' };
+    expect(lineForEvent(pb, r4.events[0], [p1, pb])?.kind).toBe('bademeisterAgain');
   });
 });

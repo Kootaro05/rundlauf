@@ -1,0 +1,2 @@
+Hier die Datei enemy-slain.mp3 ablegen (Sound für ein normales "raus" im Tisch-Modus).
+Fehlt sie, sagt der Kommentator stattdessen "An enemy has been slain."
