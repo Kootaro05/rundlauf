@@ -81,8 +81,8 @@ function unstickBrowserVoice() {
   speechSynthesis.resume();
 }
 
-function browserSpeak(text: string, lang = 'de-DE', retry = true) {
-  if (!speechSupported()) return;
+function browserSpeak(text: string, lang = 'de-DE', retry = true, done: () => void = () => {}) {
+  if (!speechSupported()) return done();
   // Audio-Tags wie [excited] versteht nur ElevenLabs; die Browser-Stimme würde sie vorlesen
   const u = new SpeechSynthesisUtterance(stripTags(text));
   const v = bestVoice(lang, localOnly);
@@ -92,12 +92,14 @@ function browserSpeak(text: string, lang = 'de-DE', retry = true) {
   // Wächter: fängt die Stimme nicht innerhalb von 2,5 s an, hängt sie. Dann einmal mit einer Gerätestimme neu versuchen.
   let started = false;
   u.addEventListener('start', () => (started = true));
+  u.addEventListener('end', done);
+  u.addEventListener('error', (e) => { if (e.error !== 'interrupted' || !retry || started) done(); });
   const mine = turn;
   window.setTimeout(() => {
     if (started || mine !== turn || !retry) return;
     if (v && !v.localService) localOnly = true;
     unstickBrowserVoice();
-    browserSpeak(text, lang, false);
+    browserSpeak(text, lang, false, done);
   }, 2500);
   if (speechSynthesis.paused) speechSynthesis.resume();
   speechSynthesis.speak(u);
@@ -117,9 +119,27 @@ export function unlockAudio() {
   void a.play().catch(() => {});
 }
 
+/**
+ * Ende der laufenden Ansage, damit die nächste aus der Warteschlange danach kommt. Wird am Ende, beim
+ * Abbruch oder spätestens nach 15 s erfüllt, damit nichts ewig wartet.
+ */
+let current: Promise<void> = Promise.resolve();
+let finishCurrent: (() => void) | null = null;
+function beginPlayback(): () => void {
+  finishCurrent?.();
+  let done!: () => void;
+  current = new Promise<void>((ok) => (done = ok));
+  const timer = window.setTimeout(() => done(), 15000);
+  finishCurrent = () => { window.clearTimeout(timer); done(); };
+  return finishCurrent;
+}
+
+/** Bricht die laufende Ansage ab und leert die Warteschlange (Kommentar ausgeschaltet) */
 function stop() {
+  for (const job of waiting.splice(0)) job.skip();
   if (speechSupported()) speechSynthesis.cancel();
   player?.pause();
+  finishCurrent?.();
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -223,26 +243,65 @@ export function warmVoice() {
 
 let turn = 0;
 
-/**
- * Sagt den Satz an. Ein noch laufender Satz wird abgebrochen, damit der Kommentar nicht hinterherhinkt.
- * Gibt zurück, welche Stimme gesprochen hat.
- */
-export async function speak(text: string, lang = 'de-DE'): Promise<VoiceResult> {
-  const mine = ++turn;
-  stop();
-  let got: Fetched;
+// --- Warteschlange ---------------------------------------------------------------
+// Jede Ansage wartet, bis die vorige fertig ist. Damit der Kommentar bei schnellen Ereignissen nicht
+// minutenlang hinterherhinkt, warten höchstens MAX_WAITING; kommt mehr dazu, fällt die älteste wartende weg.
+
+const MAX_WAITING = 3;
+interface Job { run: () => Promise<void>; skip: () => void }
+const waiting: Job[] = [];
+let running = false;
+
+async function pump() {
+  if (running) return;
+  running = true;
+  try {
+    while (waiting.length) {
+      await waiting.shift()!.run(); // startet die Ansage …
+      await current; // … und wartet ihr Ende ab
+    }
+  } finally {
+    running = false;
+  }
+}
+
+/** Reiht eine Ansage ein; das Ergebnis kommt, sobald sie startet (null, wenn sie weggefallen ist) */
+function enqueue<T>(start: () => Promise<T>): Promise<T | null> {
+  return new Promise<T | null>((resolve) => {
+    if (waiting.length >= MAX_WAITING) waiting.shift()!.skip();
+    waiting.push({
+      run: () => start().then(resolve, () => resolve(null)),
+      skip: () => resolve(null),
+    });
+    void pump();
+  });
+}
+
+/** Audio für einen Satz: aus dem Speicher oder von ElevenLabs (startet sofort, auch wenn die Ansage noch wartet) */
+async function loadAudio(text: string): Promise<Fetched> {
   try {
     const cached = await fromCache(text);
-    got = cached ? { blob: cached } : await fromEleven(text);
+    return cached ? { blob: cached } : await fromEleven(text);
   } catch {
-    got = { reason: 'Fehler' };
+    return { reason: 'Fehler' };
   }
-  if (mine !== turn) return 'blob' in got ? { source: 'eleven' } : { source: 'browser', reason: got.reason };
+}
+
+async function doSpeak(text: string, lang: string, audioP: Promise<Fetched>): Promise<VoiceResult> {
+  turn++;
+  const done = beginPlayback();
+  let got = await audioP;
+  // Während des Wartens fertig geworden (z. B. "zu langsam", aber inzwischen gespeichert)?
+  if (!('blob' in got)) {
+    const late = await fromCache(text).catch(() => null);
+    if (late) got = { blob: late };
+  }
   if ('blob' in got) {
     const a = audio();
     if (playingUrl) URL.revokeObjectURL(playingUrl);
     playingUrl = URL.createObjectURL(got.blob);
     a.src = playingUrl;
+    a.onended = done;
     try {
       await a.play();
       return { source: 'eleven' };
@@ -250,25 +309,39 @@ export async function speak(text: string, lang = 'de-DE'): Promise<VoiceResult> 
       got = { reason: 'Abspielen blockiert' };
     }
   }
-  browserSpeak(text, lang);
+  browserSpeak(text, lang, true, done);
   return { source: 'browser', reason: got.reason };
 }
 
-/**
- * Spielt eine Tondatei (z. B. /sounds/enemy-slain.mp3) statt einer Ansage. Fehlt sie oder lässt sie sich nicht
- * abspielen, wird `fallbackText` gesprochen. Gibt nur bei diesem Ersatz ein Ergebnis zurück.
- */
-export async function playClip(url: string, fallbackText: string, lang = 'en-US'): Promise<VoiceResult | null> {
-  const mine = ++turn;
-  stop();
+async function doClip(url: string, fallbackText: string, lang: string): Promise<VoiceResult | null> {
+  turn++;
+  const done = beginPlayback();
   const a = audio();
   if (playingUrl) URL.revokeObjectURL(playingUrl);
   playingUrl = null;
   a.src = url;
+  a.onended = done;
   try {
     await a.play();
     return null;
   } catch {
-    return mine === turn ? speak(fallbackText, lang) : null;
+    return doSpeak(fallbackText, lang, loadAudio(fallbackText));
   }
+}
+
+/**
+ * Sagt den Satz an, sobald die vorige Ansage fertig ist. Das Audio wird schon beim Einreihen geladen.
+ * Gibt zurück, welche Stimme gesprochen hat (null, wenn die Ansage weggefallen ist).
+ */
+export function speak(text: string, lang = 'de-DE'): Promise<VoiceResult | null> {
+  const audioP = loadAudio(text);
+  return enqueue(() => doSpeak(text, lang, audioP));
+}
+
+/**
+ * Spielt eine Tondatei (z. B. /sounds/enemy-slain.mp3), sobald die vorige Ansage fertig ist. Fehlt sie oder
+ * lässt sie sich nicht abspielen, wird `fallbackText` gesprochen. Gibt nur bei diesem Ersatz ein Ergebnis zurück.
+ */
+export async function playClip(url: string, fallbackText: string, lang = 'en-US'): Promise<VoiceResult | null> {
+  return (await enqueue(() => doClip(url, fallbackText, lang))) ?? null;
 }

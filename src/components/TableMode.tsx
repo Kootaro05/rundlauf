@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { balances, crownCheck, currentRound, kingOf, nextSeq, openPause, roundInfo, serveRule } from '../domain/game';
-import { LINES, lineForEvent, lineForFinal, render, type Line } from '../domain/commentary';
+import { SOUNDS, lineForEvent, lineForFinal, render, type Announcement, type SoundKey } from '../domain/commentary';
 import { bademeister } from '../domain/stats';
 import type { NewEvent, Pause, Round } from '../domain/types';
 import { HORN_TIMES, hhmm, playHorn, unlockHorn } from '../lib/horn';
 import { configureVoice, playClip, setSpeechEnabled, speak, speechEnabled, speechSupported, unlockAudio, warmVoice, type VoiceResult } from '../lib/speech';
 import { CrownIcon, WaveIcon, plural, useApp } from './ui';
 
-/** Sound für ein normales "raus" (selbst abzulegen, siehe README) */
-const SLAIN_SOUND = `${import.meta.env.BASE_URL}sounds/enemy-slain.mp3`;
+/** Sound abspielen (Dateien in public/sounds, selbst abzulegen); fehlt er, sagt die Stimme den englischen Text */
+const sound = (key: SoundKey) => playClip(`${import.meta.env.BASE_URL}sounds/${SOUNDS[key].file}`, SOUNDS[key].text);
 
 /** So lange bleibt die Wahl "Krone oder raus" offen, wenn niemand tippt */
 const CHOICE_TIMEOUT = 5000;
@@ -31,6 +31,11 @@ export function TableMode({ onExit }: { onExit: () => void }) {
   const [voiceResult, setVoiceResult] = useState<VoiceResult | null>(null);
   const say = useCommentary(pa, voice, setVoiceResult);
 
+  // Beim Öffnen mit eingeschaltetem Kommentar: "Welcome to Summoner's Rift"
+  useEffect(() => {
+    if (speechEnabled()) void sound('welcome').then((res) => res && setVoiceResult(res));
+  }, []);
+
   // Mit Kommentar die Server-Funktion wach halten, damit ElevenLabs schnell genug antwortet
   useEffect(() => {
     if (!voice) return;
@@ -50,7 +55,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
     if (!voice) {
       unlockAudio();
       unlockHorn();
-      void speak('Kommentator an.').then(setVoiceResult);
+      void sound('welcome').then((res) => res && setVoiceResult(res));
     }
   };
 
@@ -123,15 +128,17 @@ function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceRe
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
-  const say = useCallback((line: Line | null) => {
-    if (!line || !enabledRef.current) return;
-    // Normales "raus": Sound statt Ansage (Ersatztext, falls die Datei fehlt)
-    if (line.kind === 'slain') {
-      void playClip(SLAIN_SOUND, LINES.slain[0]).then((res) => res && onSource(res));
+  const say = useCallback((a: Announcement | null) => {
+    if (!a || !enabledRef.current) return;
+    // Nur ein Sound (First Blood, Slain); fehlt die Datei, kommt der englische Text
+    if ('sound' in a) {
+      void sound(a.sound).then((res) => res && onSource(res));
       return;
     }
-    lastText.current = render(line, spokenName, Math.random, lastText.current);
-    void speak(lastText.current).then(onSource);
+    lastText.current = render(a, spokenName, Math.random, lastText.current);
+    void speak(lastText.current).then((res) => res && onSource(res));
+    // Penta Kill oder Shut down direkt nach dem Siegspruch (die Warteschlange hält die Reihenfolge)
+    if (a.then) void sound(a.then).then((res) => res && onSource(res));
   }, [spokenName, onSource]);
 
   useEffect(() => {

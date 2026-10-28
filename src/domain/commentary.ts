@@ -43,8 +43,6 @@ export const LINES = {
     '[sighs] Seepferdchen nicht bestanden, {name}.',
     '[dramatic] Der Rettungsring hat {name} nicht gereicht.',
   ],
-  /** Normales "raus": spielt den Sound public/sounds/enemy-slain.mp3; der Text ist nur der Ersatz, falls er fehlt */
-  slain: ['An enemy has been slain.'],
   crown: [
     '{name} setzt eine Krone. {pot} im Pot.',
     'Krone von {name}, der Pot steht bei {pot}.',
@@ -78,8 +76,40 @@ export const LINES = {
   ],
 } satisfies Record<string, string[]>;
 
+/**
+ * Sounds aus public/sounds (selbst abzulegen). Fehlt eine Datei, sagt die Stimme den Text auf Englisch.
+ */
+export const SOUNDS = {
+  slain: { file: 'enemy-slain.mp3', text: 'An enemy has been slain.' },
+  firstBlood: { file: 'first-blood.mp3', text: 'First Blood!' },
+  pentaKill: { file: 'penta-kill.mp3', text: 'Penta Kill!' },
+  shutDown: { file: 'shut-down.mp3', text: 'Shut down!' },
+  welcome: { file: 'welcome-to-summoners-rift.mp3', text: "Welcome to Summoner's Rift!" },
+} as const;
+export type SoundKey = keyof typeof SOUNDS;
+
 export type LineKind = keyof typeof LINES;
-export interface Line { kind: LineKind; vars: Record<string, string | number> }
+/** Gesprochene Ansage; `then` ist ein Sound, der direkt danach kommt */
+export interface Line { kind: LineKind; vars: Record<string, string | number>; then?: SoundKey }
+/** Nur ein Sound statt einer Ansage */
+export interface SoundCue { sound: SoundKey }
+export type Announcement = Line | SoundCue;
+
+/** Ab so vielen Finalsiegen in Folge (in der Pause) gilt man als "auf Serie"; wer das beendet, löst "Shut down" aus */
+export const SPREE = 3;
+/** Alle so viele Siege in Folge kommt "Penta Kill" */
+export const PENTA = 5;
+
+/** Finalsieger der Pause bis einschließlich Runde `upto` (Index), in Spielreihenfolge */
+const winners = (pa: Pause, upto: number) =>
+  pa.rounds.slice(0, upto + 1).map((r) => roundInfo(r).final?.p).filter((p): p is string => !!p);
+
+/** Wie oft `p` am Ende der Liste hintereinander gewonnen hat */
+const streakOf = (list: string[], p: string) => {
+  let n = 0;
+  for (let i = list.length - 1; i >= 0 && list[i] === p; i--) n++;
+  return n;
+};
 
 export const kronen = (n: number) => (n === 1 ? 'eine Krone' : `${n} Kronen`);
 
@@ -87,7 +117,7 @@ export const kronen = (n: number) => (n === 1 ? 'eine Krone' : `${n} Kronen`);
  * Was zu einem frisch eingetragenen Ereignis gesagt wird; null heißt schweigen.
  * `pauses` sind alle Pausen (für den Bademeister im Semester), `pa` muss darin enthalten sein.
  */
-export function lineForEvent(pa: Pause, e: GameEvent, pauses: Pause[] = [pa]): Line | null {
+export function lineForEvent(pa: Pause, e: GameEvent, pauses: Pause[] = [pa]): Announcement | null {
   const ri = pa.rounds.findIndex((r) => r.events.some((x) => x.id === e.id));
   if (ri < 0) return null;
   const r = pa.rounds[ri];
@@ -112,12 +142,20 @@ export function lineForEvent(pa: Pause, e: GameEvent, pauses: Pause[] = [pa]): L
       return { kind, vars: { name: e.p, pot: info.pot } };
     }
     case 'out':
-      // Das Finale hat Vorrang, dann die Bleiente, sonst der Slain-Sound
+      // Das Finale hat Vorrang, dann die Bleiente, dann First Blood (erstes Raus der Runde), sonst Slain
       if (info.active.length === 2) return lineForFinal(pa, r);
       if (info.schwimmer === e.p && info.out[0] === e.p) return { kind: 'bleiente', vars: { name: e.p } };
-      return { kind: 'slain', vars: {} };
-    case 'final':
-      return { kind: 'win', vars: { name: e.p, pot: e.pot ?? 0 } };
+      return { sound: info.out[0] === e.p ? 'firstBlood' : 'slain' };
+    case 'final': {
+      const line: Line = { kind: 'win', vars: { name: e.p, pot: e.pot ?? 0 } };
+      const list = winners(pa, ri);
+      const streak = streakOf(list, e.p);
+      // Serie des Verlierers vor diesem Finale: hat er gerade eine Serie gehabt, wurde sie hier beendet
+      const loserStreak = e.loser ? streakOf(list.slice(0, -1), e.loser) : 0;
+      if (streak >= PENTA && streak % PENTA === 0) line.then = 'pentaKill';
+      else if (loserStreak >= SPREE) line.then = 'shutDown';
+      return line;
+    }
   }
 }
 

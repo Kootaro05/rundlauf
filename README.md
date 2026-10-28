@@ -29,9 +29,15 @@ Die Datenbank prüft dieselben Regeln beim Speichern noch einmal ([`0002_regeln.
   an, mit ElevenLabs (falls eingerichtet) oder der eingebauten Browser-Stimme. Die Sprüche stehen in
   `src/domain/commentary.ts`. Eigene Sprüche gibt es für den **Bademeister** (meiste Schwimmer im laufenden
   Semester; neuer Bademeister wird man erst durch Überholen) und die **Bleiente** (Schwimmer gehabt und trotzdem
-  als Erster raus). Bei jedem anderen „raus“ (außer es geht ins Finale) spielt `public/sounds/enemy-slain.mp3`;
-  die Datei ist nicht im Repo und muss selbst abgelegt werden. Fehlt sie, sagt der Kommentator
-  „An enemy has been slain.“
+  als Erster raus). Sounds aus `public/sounds/` (nicht im Repo, selbst ablegen; fehlt eine Datei, sagt die Stimme
+  den Text auf Englisch):
+  - `welcome-to-summoners-rift.mp3`: beim Öffnen des Tisch-Modus und beim Einschalten des Kommentars
+  - `first-blood.mp3`: erstes „raus“ einer Runde; `enemy-slain.mp3`: jedes weitere (Finale und Bleiente gehen vor)
+  - `penta-kill.mp3`: 5., 10., … Finalsieg in Folge innerhalb der Pause, nach dem Siegspruch
+  - `shut-down.mp3`: Finalsieg gegen jemanden, der gerade 3+ Siege in Folge hatte, nach dem Siegspruch
+
+  Alle Ansagen und Sounds laufen über eine Warteschlange: die nächste wartet, bis die vorige fertig ist. Warten
+  mehr als drei, fällt die älteste wartende weg, damit der Kommentar nicht zu weit hinterherhinkt.
   Mit eingeschaltetem Kommentator ertönt um 9:58, 11:58, 13:58 und 15:43 ein Signalhorn als Zeichen für die letzte
   Runde (Uhrzeiten in `src/lib/horn.ts`). Es beendet nichts. Oben mittig steht die aktuelle Uhrzeit.
 - **Offline:** Ohne Netz landen Einträge in einer Warteschlange auf dem Gerät und werden nachgereicht.
