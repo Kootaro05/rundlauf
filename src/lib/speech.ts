@@ -50,15 +50,17 @@ export const speechEnabled = () => read(KEY) === '1';
 export function setSpeechEnabled(on: boolean) {
   write(KEY, on ? '1' : '0');
   // Neu einschalten probiert ElevenLabs sofort wieder, z. B. nach dem Aufladen
-  if (on) write(PAUSE_KEY, null);
-  else stop();
+  if (on) {
+    write(PAUSE_KEY, null);
+    unstickBrowserVoice();
+  } else stop();
 }
 
 // --- Browser-Stimme ------------------------------------------------------------
 
 /** Beste Stimme für die Sprache: natürliche Online-Stimmen (Edge) vor den Standardstimmen */
-function bestVoice(lang: string): SpeechSynthesisVoice | null {
-  const de = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang.slice(0, 2)));
+function bestVoice(lang: string, localOnly = false): SpeechSynthesisVoice | null {
+  const de = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang.slice(0, 2)) && (!localOnly || v.localService));
   const score = (v: SpeechSynthesisVoice) => (/natural/i.test(v.name) ? 4 : 0) + (/online|google/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
   return de.sort((a, b) => score(b) - score(a))[0] ?? null;
 }
@@ -66,14 +68,38 @@ function bestVoice(lang: string): SpeechSynthesisVoice | null {
 // Chrome lädt die Stimmen erst beim ersten Abfragen, deshalb schon beim Start einmal anstoßen
 if (speechSupported()) speechSynthesis.getVoices();
 
-function browserSpeak(text: string, lang = 'de-DE') {
+/** Online-Stimmen, die sich aufgehängt haben: für den Rest der Sitzung nur noch Stimmen auf dem Gerät */
+let localOnly = false;
+
+/**
+ * Chrome und Edge bleiben manchmal im Zustand "spricht" hängen (vor allem mit Online-Stimmen), dann kommt
+ * nichts mehr heraus. Abbrechen und Fortsetzen löst das meist.
+ */
+function unstickBrowserVoice() {
+  if (!speechSupported()) return;
+  speechSynthesis.cancel();
+  speechSynthesis.resume();
+}
+
+function browserSpeak(text: string, lang = 'de-DE', retry = true) {
   if (!speechSupported()) return;
   // Audio-Tags wie [excited] versteht nur ElevenLabs; die Browser-Stimme würde sie vorlesen
   const u = new SpeechSynthesisUtterance(stripTags(text));
-  const v = bestVoice(lang);
+  const v = bestVoice(lang, localOnly);
   if (v) u.voice = v;
   u.lang = v?.lang ?? lang;
   u.rate = 1.05;
+  // Wächter: fängt die Stimme nicht innerhalb von 2,5 s an, hängt sie. Dann einmal mit einer Gerätestimme neu versuchen.
+  let started = false;
+  u.addEventListener('start', () => (started = true));
+  const mine = turn;
+  window.setTimeout(() => {
+    if (started || mine !== turn || !retry) return;
+    if (v && !v.localService) localOnly = true;
+    unstickBrowserVoice();
+    browserSpeak(text, lang, false);
+  }, 2500);
+  if (speechSynthesis.paused) speechSynthesis.resume();
   speechSynthesis.speak(u);
 }
 

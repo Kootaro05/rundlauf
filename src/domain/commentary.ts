@@ -37,7 +37,7 @@ export const LINES = {
   ],
   /** Schwimmer gehabt und trotzdem als Erster raus */
   bleiente: [
-    '[laughs] {name} macht den Nichtschwimmer und hält den Rand fest.',
+    '[laughs] {name} macht den Nichtschwimmer und hält den Rand.',
     '[amused] Glub, glub… {name} ist untergegangen.',
     '[sarcastic] {name} geht unter wie eine Bleiente.',
     '[sighs] Seepferdchen nicht bestanden, {name}.',
