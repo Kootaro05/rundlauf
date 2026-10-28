@@ -114,7 +114,8 @@ So ist das laufende System aufgesetzt. Die Schritte braucht man nur für ein neu
    - **Enable automatic RLS**: an
 2. Im **SQL Editor** nacheinander [`0001_init.sql`](supabase/migrations/0001_init.sql),
    [`0002_regeln.sql`](supabase/migrations/0002_regeln.sql), [`0003_profile.sql`](supabase/migrations/0003_profile.sql)
-   und [`0004_admin.sql`](supabase/migrations/0004_admin.sql) ausführen. Danach den Admin festlegen (letzte Zeile in 0004).
+   [`0004_admin.sql`](supabase/migrations/0004_admin.sql) und [`0005_aussprache.sql`](supabase/migrations/0005_aussprache.sql)
+   ausführen. Danach den Admin festlegen (letzte Zeile in 0004).
    0003 legt auch den privaten Bildspeicher `avatars` an.
 3. Dich selbst als ersten Spieler anlegen, siehe [`supabase/seed.example.sql`](supabase/seed.example.sql).
    Alle weiteren Spieler legt man danach in der App im Tab *Spieler* an.
@@ -202,6 +203,9 @@ Ohne diesen Schritt spricht der Kommentator mit der Browser-Stimme (in Edge am b
    - `ELEVENLABS_API_KEY`: der Schlüssel
    - `ELEVENLABS_VOICE_ID`: die Voice ID
    - `ELEVENLABS_MODEL` (optional): Modell-ID aus der ElevenLabs-Doku, Standard ist `eleven_v4_turbo`
+   - optional zum Feinjustieren: `ELEVENLABS_SPEED` (0.7–1.2, Standard 1), `ELEVENLABS_STABILITY` (0–1, weniger =
+     mehr Emotion, aber unbeständiger), `ELEVENLABS_SIMILARITY` (0–1), `ELEVENLABS_STYLE` (0–1, mehr Ausdruck).
+     Nicht gesetzt heißt: die Einstellungen der Stimme bei ElevenLabs. Änderungen erzeugen die Sätze einmal neu.
 4. **Deployments → Redeploy**, damit die Variablen greifen.
 5. Im Tisch-Modus den Kommentar aus- und wieder einschalten. Steht am Knopf nicht mehr „Browser-Stimme“, spricht ElevenLabs.
 
@@ -218,6 +222,11 @@ So verhält sich die App:
   nutzt die App nur Audios der neuen Stimme; jeder Satz wird einmal neu erzeugt. Die Audios der alten Stimme bleiben
   auf dem Gerät und sind nach einem Zurückwechseln sofort wieder da. Anhören und herunterladen lässt sich jede
   erzeugte Ansage im Verlauf (History) bei ElevenLabs.
+- Tonfall: Die Sprüche in `src/domain/commentary.ts` tragen Audio-Tags wie `[excited]`, `[sarcastic]` oder `[laughs]`.
+  ElevenLabs v3/v4 setzt sie als Regieanweisung um, die Browser-Stimme lässt sie weg.
+- Aussprache: Im Profil gibt es das Feld „Aussprache“ (z. B. „Flobbob null neun“). Der Kommentator liest dann das
+  statt des Spitznamens vor; angezeigt wird weiter der Spitzname. Braucht Migration 0005, ohne sie läuft die App
+  normal weiter, nur das Speichern einer Aussprache geht nicht.
 
 ### Wer darf was?
 

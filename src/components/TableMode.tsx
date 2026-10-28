@@ -115,7 +115,7 @@ export function TableMode({ onExit }: { onExit: () => void }) {
  * da war, bleibt still; Rückgängig sagt nichts. Gibt eine Funktion für zusätzliche Ansagen zurück.
  */
 function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceResult) => void) {
-  const { name, data } = useApp();
+  const { spokenName, data } = useApp();
   const pausesRef = useRef(data.pauses);
   pausesRef.current = data.pauses;
   const seen = useRef<Set<string> | null>(null);
@@ -130,9 +130,9 @@ function useCommentary(pa: Pause | null, enabled: boolean, onSource: (s: VoiceRe
       void playClip(SLAIN_SOUND, LINES.slain[0]).then((res) => res && onSource(res));
       return;
     }
-    lastText.current = render(line, name, Math.random, lastText.current);
+    lastText.current = render(line, spokenName, Math.random, lastText.current);
     void speak(lastText.current).then(onSource);
-  }, [name, onSource]);
+  }, [spokenName, onSource]);
 
   useEffect(() => {
     if (!pa) return;

@@ -123,7 +123,7 @@ function Tile({ label, big, sub }: { label: string; big: number; sub: string }) 
 }
 
 function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDone: () => void }) {
-  const { backend, run, busy, priv, refreshPrivate, name, session, toast, color, isAdmin } = useApp();
+  const { backend, run, busy, priv, refreshPrivate, name, session, toast, color, isAdmin, data } = useApp();
   const [source, setSource] = useState<HTMLCanvasElement | null>(null);
   const info = priv.info[p];
   const account = priv.accounts[p];
@@ -131,6 +131,8 @@ function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDo
   const [nick, setNick] = useState(name(p));
   const [first, setFirst] = useState(info?.firstName ?? '');
   const [last, setLast] = useState(info?.lastName ?? '');
+  const spokenBefore = data.players.find((x) => x.id === p)?.spoken ?? '';
+  const [spoken, setSpoken] = useState(spokenBefore);
   // Liefert den gewählten Bildausschnitt, solange ein neues Bild im Zuschnitt-Rahmen liegt
   const cropRef = useRef<(() => Promise<Blob>) | null>(null);
 
@@ -139,7 +141,11 @@ function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDo
     const n = nick.trim().slice(0, 24);
     if (!n) return toast('Der Spitzname darf nicht leer sein.');
     const ok = await run(async () => {
-      await backend.saveProfile(p, { name: n, firstName: first.trim() || null, lastName: last.trim() || null });
+      const sp = spoken.trim().slice(0, 60);
+      await backend.saveProfile(p, {
+        name: n, firstName: first.trim() || null, lastName: last.trim() || null,
+        ...(sp !== spokenBefore.trim() ? { spoken: sp || null } : {}),
+      });
       if (source && cropRef.current) await backend.uploadAvatar(p, await cropRef.current(), info?.avatarPath ?? null);
     }, 'Profil gespeichert');
     await refreshPrivate();
@@ -162,7 +168,9 @@ function ProfileEditor({ p, hidden, onDone }: { p: string; hidden: boolean; onDo
         <label>Spitzname<input id="pf-nick" type="text" maxLength={24} value={nick} onChange={(e) => setNick(e.target.value)} /></label>
         <label>Vorname<input id="pf-first" type="text" maxLength={40} value={first} onChange={(e) => setFirst(e.target.value)} /></label>
         <label>Nachname<input id="pf-last" type="text" maxLength={40} value={last} onChange={(e) => setLast(e.target.value)} /></label>
+        <label>Aussprache<input id="pf-spoken" type="text" maxLength={60} value={spoken} placeholder={name(p)} onChange={(e) => setSpoken(e.target.value)} /></label>
       </div>
+      <p className="sub">Aussprache: So liest der Kommentator im Tisch-Modus deinen Spitznamen vor, geschrieben wie gesprochen (z. B. „Flobbob null neun“). Leer lassen, wenn der Spitzname schon richtig klingt.</p>
       {own && account?.email && <p className="sub">Angemeldet mit {account.email}</p>}
       <p className="sub">Den Spitznamen sieht jeder. Vor- und Nachname und das Bild sehen nur angemeldete Spieler.</p>
 

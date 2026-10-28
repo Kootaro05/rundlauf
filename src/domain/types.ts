@@ -33,6 +33,8 @@ export interface Player {
   name: string;
   hidden: boolean;
   createdAt: number;
+  /** Wie der Kommentator den Spitznamen ausspricht; leer heißt: den Spitznamen vorlesen */
+  spoken?: string | null;
 }
 
 /** Nur für eingetragene Spieler sichtbar */

@@ -31,6 +31,7 @@ interface PlayerRow {
   name: string;
   hidden: boolean;
   created_at: string;
+  spoken_name?: string | null;
 }
 
 const ms = (s: string) => new Date(s).getTime();
@@ -39,7 +40,11 @@ const PAUSE_SELECT =
   'id, started_at, ended_at, pause_players(player_id), rounds(id, number, started_at, round_players(player_id), events(id, seq, type, player_id, loser_id, server_id, pot, created_at))';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const toPlayer = (r: PlayerRow) => ({ id: r.id, name: r.name, hidden: r.hidden, createdAt: ms(r.created_at) });
+const toPlayer = (r: PlayerRow) => ({ id: r.id, name: r.name, hidden: r.hidden, createdAt: ms(r.created_at), spoken: r.spoken_name ?? null });
+
+const PLAYER_COLS = 'id, name, hidden, created_at';
+/** Migration 0005 (Aussprache) fehlt noch: dann ohne die Spalte laden, statt dass die App nicht startet */
+const missingSpoken = (e: { message?: string } | null) => !!e && /spoken_name/.test(e.message ?? '');
 
 const toPause = (r: PauseRow): Pause => ({
   id: r.id,
@@ -89,6 +94,12 @@ function check<T extends { error: PostgrestError | null }>(res: T): T {
 export function createSupabaseBackend(url: string, key: string): Backend {
   const sb = createClient(url, key);
 
+  const loadPlayers = async () => {
+    let res = await sb.from('players').select(`${PLAYER_COLS}, spoken_name`);
+    if (missingSpoken(res.error)) res = await sb.from('players').select(PLAYER_COLS);
+    return (check(res).data as PlayerRow[]).map(toPlayer);
+  };
+
   return {
     kind: 'supabase',
 
@@ -129,18 +140,15 @@ export function createSupabaseBackend(url: string, key: string): Backend {
     },
 
     async load(): Promise<Data> {
-      const [pl, pa] = await Promise.all([
-        sb.from('players').select('id, name, hidden, created_at'),
+      const [players, pa] = await Promise.all([
+        loadPlayers(),
         sb.from('pauses').select(PAUSE_SELECT).order('started_at', { ascending: false }),
       ]);
-      check(pl);
       check(pa);
-      return { players: (pl.data as PlayerRow[]).map(toPlayer), pauses: (pa.data as unknown as PauseRow[]).map(toPause) };
+      return { players, pauses: (pa.data as unknown as PauseRow[]).map(toPause) };
     },
 
-    async loadPlayers() {
-      return (check(await sb.from('players').select('id, name, hidden, created_at')).data as PlayerRow[]).map(toPlayer);
-    },
+    loadPlayers,
 
     async loadPauses({ ids, open }) {
       const safe = ids.filter((id) => UUID.test(id));
@@ -238,7 +246,9 @@ export function createSupabaseBackend(url: string, key: string): Backend {
     },
     async saveProfile(id, p) {
       // Die Zugriffsregeln lassen fremde Änderungen ins Leere laufen, darum die geänderten Zeilen zählen
-      const res = check(await sb.from('players').update({ name: p.name }).eq('id', id).select('id'));
+      const upd = await sb.from('players').update({ name: p.name, ...(p.spoken !== undefined ? { spoken_name: p.spoken } : {}) }).eq('id', id).select('id');
+      if (missingSpoken(upd.error)) throw new AppError('Für die Aussprache muss zuerst die Migration 0005 in Supabase ausgeführt werden.');
+      const res = check(upd);
       if (!res.data?.length) throw new AppError('Dieses Profil darf nur der Spieler selbst oder der Admin ändern.');
       check(await sb.from('player_private').upsert({
         player_id: id, first_name: p.firstName, last_name: p.lastName, updated_at: new Date().toISOString(),

@@ -71,7 +71,8 @@ export interface Backend {
 
   /** Echte Namen, Profilbilder und Logins, nur für eingetragene Spieler. Für alle anderen leer. */
   loadPrivate(): Promise<PrivateData>;
-  saveProfile(id: string, p: { name: string; firstName: string | null; lastName: string | null }): Promise<void>;
+  /** `spoken` (Aussprache für den Kommentator) nur mitgeben, wenn sie sich geändert hat */
+  saveProfile(id: string, p: { name: string; firstName: string | null; lastName: string | null; spoken?: string | null }): Promise<void>;
   /** Lädt ein vorbereitetes Bild hoch (siehe lib/image.ts) und löscht das alte */
   uploadAvatar(id: string, image: Blob, oldPath: string | null): Promise<void>;
   removeAvatar(id: string, path: string): Promise<void>;

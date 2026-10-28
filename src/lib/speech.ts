@@ -4,6 +4,8 @@
  * dem Gerät gespeichert, damit jeder genau gleiche Satz nur einmal Guthaben kostet.
  */
 
+import { stripTags } from '../domain/commentary';
+
 const KEY = 'rundlauf-kommentator';
 /** Bis zu diesem Zeitpunkt wird ElevenLabs übersprungen (Guthaben leer, nicht eingerichtet, kein Zugriff) */
 const PAUSE_KEY = 'rundlauf-stimme-pause';
@@ -66,7 +68,8 @@ if (speechSupported()) speechSynthesis.getVoices();
 
 function browserSpeak(text: string, lang = 'de-DE') {
   if (!speechSupported()) return;
-  const u = new SpeechSynthesisUtterance(text);
+  // Audio-Tags wie [excited] versteht nur ElevenLabs; die Browser-Stimme würde sie vorlesen
+  const u = new SpeechSynthesisUtterance(stripTags(text));
   const v = bestVoice(lang);
   if (v) u.voice = v;
   u.lang = v?.lang ?? lang;

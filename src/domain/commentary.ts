@@ -5,73 +5,76 @@ import type { GameEvent, Pause, Round } from './types';
 /**
  * Sprüche für den Kommentator im Tisch-Modus. Platzhalter: {name}, {a}, {b}, {server},
  * {pot} (Zahl) und {kronen} ("eine Krone" / "3 Kronen").
+ *
+ * Audio-Tags in eckigen Klammern wie [excited] steuern bei ElevenLabs (v3/v4) den Tonfall; sie werden
+ * nicht vorgelesen. Die Browser-Stimme bekommt den Text ohne Tags. Pausen über "…", Betonung über "!".
  */
 export const LINES = {
   schwimmer: [
     '{name} ist am Schwimmen.',
     '{name} hat den Schwimmer.',
-    '{name} geht baden.',
-    'Rettungsring für {name}!',
-    '{name} paddelt noch.',
-    'Seepferdchen-Prüfung für {name}.',
+    '[amused] {name} geht baden.',
+    '[excited] Rettungsring für {name}!',
+    '[amused] {name} paddelt noch.',
+    '[sarcastic] Seepferdchen-Prüfung für {name}.',
   ],
   schwimmerAgain: [
-    '{name} ist wieder am Schwimmen.',
-    '{name} fühlt sich im Wasser offenbar wohl.',
-    'Schon wieder {name}. Wird langsam eine Gewohnheit.',
+    '[amused] {name} ist wieder am Schwimmen.',
+    '[sarcastic] {name} fühlt sich im Wasser offenbar wohl.',
+    '[sighs] Schon wieder {name}… Wird langsam eine Gewohnheit.',
   ],
   /** Überholt mit diesem Schwimmer den bisherigen Bademeister (meiste Schwimmer im Semester) */
   bademeisterNew: [
-    'Neuer Bademeister: {name}!',
-    'Pfeife und Badehose gehen an {name}.',
-    '{name} übernimmt die Aufsicht am Becken.',
+    '[excited] Neuer Bademeister: {name}!',
+    '[dramatic] Pfeife und Badehose gehen an… {name}!',
+    '[amused] {name} übernimmt die Aufsicht am Becken.',
   ],
   /** Der Bademeister nimmt selbst wieder einen Schwimmer */
   bademeisterAgain: [
-    'Der Bademeister geht selbst baden.',
-    '{name} prüft mal wieder die Wassertemperatur.',
-    'Der Bademeister ist im Wasser. Wer passt jetzt auf?',
+    '[laughs] Der Bademeister geht selbst baden.',
+    '[sarcastic] {name} prüft mal wieder die Wassertemperatur.',
+    '[whispers] Der Bademeister ist im Wasser… Wer passt jetzt auf?',
   ],
   /** Schwimmer gehabt und trotzdem als Erster raus */
   bleiente: [
-    '{name} macht den Nichtschwimmer und hält den Rand fest.',
-    'Glub, glub. {name} ist untergegangen.',
-    '{name} geht unter wie eine Bleiente.',
-    'Seepferdchen nicht bestanden, {name}.',
-    'Der Rettungsring hat {name} nicht gereicht.',
+    '[laughs] {name} macht den Nichtschwimmer und hält den Rand fest.',
+    '[amused] Glub, glub… {name} ist untergegangen.',
+    '[sarcastic] {name} geht unter wie eine Bleiente.',
+    '[sighs] Seepferdchen nicht bestanden, {name}.',
+    '[dramatic] Der Rettungsring hat {name} nicht gereicht.',
   ],
   /** Normales "raus": spielt den Sound public/sounds/enemy-slain.mp3; der Text ist nur der Ersatz, falls er fehlt */
   slain: ['An enemy has been slain.'],
   crown: [
     '{name} setzt eine Krone. {pot} im Pot.',
     'Krone von {name}, der Pot steht bei {pot}.',
-    '{name} kauft sich frei. {kronen} im Pot.',
-    'Krone! {name} bleibt drin.',
-    '{name} zahlt lieber, als zu gehen.',
-    'Der Pot wird fett: {kronen}.',
+    '[amused] {name} kauft sich frei. {kronen} im Pot.',
+    '[excited] Krone! {name} bleibt drin.',
+    '[sarcastic] {name} zahlt lieber, als zu gehen.',
+    '[excited] Der Pot wird fett: {kronen}.',
   ],
   /** Kommt ab 5 Kronen im Pot zusätzlich in die Auswahl */
-  crownBigPot: ['{kronen} im Pot, jetzt wird\'s ernst.'],
+  crownBigPot: ["[dramatic] {kronen} im Pot… jetzt wird's ernst."],
   /** Der König setzt in dieser Runde schon eine weitere Krone */
-  crownKing: ['Der König greift in die Schatzkammer.', '{name} kann\'s sich ja leisten.'],
+  crownKing: ['[amused] Der König greift in die Schatzkammer.', "[sarcastic] {name} kann's sich ja leisten."],
   final: [
-    'Finale: {a} gegen {b}. {server} schlägt auf.',
+    '[excited] Finale: {a} gegen {b}! {server} schlägt auf.',
     'Es kommt zum Finale zwischen {a} und {b}. Aufschlag {server}.',
-    'Showdown! {a} gegen {b}, {kronen} stehen auf dem Spiel.',
+    '[dramatic] Showdown! {a} gegen {b}… {kronen} stehen auf dem Spiel.',
     'Zwei bleiben übrig: {a} und {b}. {server} beginnt.',
-    'Es geht um {kronen}. {server} hat die Angabe.',
+    '[dramatic] Es geht um {kronen}. {server} hat die Angabe.',
   ],
   finalTie: [
-    'Finale {a} gegen {b}, Gleichstand bei den Kronen. Die Angabe wird ausgespielt.',
-    'Finale {a} gegen {b}. Keiner gönnt dem anderen was: Angabe ausspielen!',
+    '[excited] Finale {a} gegen {b}! Gleichstand bei den Kronen. Die Angabe wird ausgespielt.',
+    '[amused] Finale {a} gegen {b}. Keiner gönnt dem anderen was: Angabe ausspielen!',
   ],
   serve: ['{server} schlägt auf.'],
   win: [
-    '{name} gewinnt {kronen}!',
-    'Sieg für {name}, {kronen} aufs Konto!',
-    '{name} räumt den Pot ab.',
-    'Und {name} macht\'s! {kronen}.',
-    'Kasse! {name} kassiert {kronen}.',
+    '[excited] {name} gewinnt {kronen}!',
+    '[excited] Sieg für {name}, {kronen} aufs Konto!',
+    '[laughs] {name} räumt den Pot ab.',
+    "[excited] Und {name} macht's! {kronen}.",
+    '[shouting] Kasse! {name} kassiert {kronen}!',
   ],
 } satisfies Record<string, string[]>;
 
@@ -143,3 +146,6 @@ export function render(line: Line, name: (id: string) => string, rnd = Math.rand
   const from = fresh.length ? fresh : options;
   return from[Math.floor(rnd() * from.length)];
 }
+
+/** Text ohne Audio-Tags, z. B. für die Browser-Stimme */
+export const stripTags = (t: string) => t.replace(/\[[^\]]*\]\s*/g, '').trim();

@@ -34,6 +34,8 @@ export interface AppCtx {
   canEditPlayer: (id: string) => boolean;
   /** Vor- und Nachname, nur für Mitglieder, sonst null */
   realName: (id: string) => string | null;
+  /** Wie der Kommentator den Spieler ausspricht (Aussprache aus dem Profil, sonst der Spitzname) */
+  spokenName: (id: string) => string;
   avatar: (id: string) => string | null;
   openProfile: (id: string) => void;
   closeProfile: () => void;

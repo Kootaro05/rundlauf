@@ -122,6 +122,7 @@ export function createDemoBackend(): Backend {
     async saveProfile(pid, p) {
       const pl = data.players.find((x) => x.id === pid);
       if (pl) pl.name = p.name;
+      if (pl && p.spoken !== undefined) pl.spoken = p.spoken;
       priv.info[pid] = { ...(priv.info[pid] ?? emptyInfo()), firstName: p.firstName, lastName: p.lastName };
       changed();
     },

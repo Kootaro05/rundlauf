@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LINES, kronen, lineForEvent, lineForFinal, render } from './commentary';
+import { LINES, kronen, lineForEvent, lineForFinal, render, stripTags } from './commentary';
 import type { EventType, Pause, Round } from './types';
 
 let n = 0;
@@ -96,5 +96,13 @@ describe('Kommentator', () => {
     const pb = pause(P, r4);
     const p1 = { ...pause(P, r1), id: 'p1' };
     expect(lineForEvent(pb, r4.events[0], [p1, pb])?.kind).toBe('bademeisterAgain');
+  });
+
+  it('Audio-Tags: nur am Satzanfang bekannte Form, für die Browser-Stimme entfernbar', () => {
+    expect(stripTags('[excited] Kasse! [laughs] Tux kassiert.')).toBe('Kasse! Tux kassiert.');
+    for (const line of Object.values(LINES).flat()) {
+      expect(stripTags(line)).not.toMatch(/[[]]/);
+      expect(line.length).toBeLessThan(200);
+    }
   });
 });

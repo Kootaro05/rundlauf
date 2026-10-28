@@ -309,6 +309,7 @@ export default function App() {
       // Das eigene Profil, der Admin alle
       canEditPlayer: (id) => isAdmin || (isMember && id === session?.playerId),
       name: (id) => byId.get(id)?.name ?? 'Unbekannt',
+      spokenName: (id) => byId.get(id)?.spoken?.trim() || byId.get(id)?.name || 'Unbekannt',
       realName: (id) => [priv.info[id]?.firstName, priv.info[id]?.lastName].filter(Boolean).join(' ') || null,
       avatar: (id) => priv.info[id]?.avatarUrl ?? null,
       color: (id) => `var(--c${Math.max(0, order.indexOf(id)) % 8})`,
